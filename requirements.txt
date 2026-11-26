@@ -1,0 +1,26 @@
+# HTTP & Network (with SOCKS proxy support)
+requests[socks]
+httpx[socks]
+# Browser-accurate TLS/JA3 + HTTP/2 fingerprinting (libcurl-impersonate)
+curl_cffi>=0.17.0
+
+# Terminal UI & Output Formatting
+rich
+
+# TikTok Profile & OSINT
+ms4
+beautifulsoup4
+
+# Geo & Country Lookup
+pycountry
+
+# Cryptography & Request Signature (AES, PKCS7, Argus, Chrome Cookie Decryption)
+pycryptodome
+
+# Web Dashboard Backend & Real-Time WebSockets
+Flask
+Flask-SocketIO
+simple-websocket
+
+# Session & Multi-Account State Management
+redis

@@ -1,0 +1,3439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ THUNDER Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #111118;
+            --bg-card: rgba(17, 17, 28, 0.7);
+            --bg-card-hover: rgba(25, 25, 40, 0.85);
+            --border: rgba(0, 212, 255, 0.15);
+            --border-hover: rgba(0, 212, 255, 0.35);
+            --cyan: #00d4ff;
+            --cyan-dim: rgba(0, 212, 255, 0.2);
+            --green: #00ff88;
+            --green-dim: rgba(0, 255, 136, 0.15);
+            --red: #ff4444;
+            --red-dim: rgba(255, 68, 68, 0.15);
+            --yellow: #ffd700;
+            --orange: #ff8800;
+            --purple: #a855f7;
+            --pink: #ff55aa;
+            --white: #e8e8f0;
+            --dim: #6b6b80;
+            --font-sans: 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 600px 400px at 20% 10%, rgba(0,212,255,0.05), transparent),
+                radial-gradient(ellipse 500px 300px at 80% 80%, rgba(168,85,247,0.04), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── HEADER (MINIMAL NAVBAR) ────────────────────────── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-family: var(--font-mono);
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, var(--yellow) 0%, var(--orange) 40%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-sub {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--dim);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .logo-sub .tag {
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            color: var(--cyan);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            transition: all 0.3s;
+        }
+
+        .status-badge.stopped {
+            background: var(--red-dim);
+            border: 1px solid rgba(255,68,68,0.3);
+            color: var(--red);
+        }
+
+        .status-badge.running {
+            background: var(--green-dim);
+            border: 1px solid rgba(0,255,136,0.3);
+            color: var(--green);
+        }
+
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .stopped .status-dot { background: var(--red); }
+        .running .status-dot { background: var(--green); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        /* ── CARDS (COMPACT & SLEEK) ────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 14px;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-card-hover);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-title {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--cyan);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card-title::before {
+            content: '▸';
+            color: var(--yellow);
+        }
+
+        /* Hide verbose explanatory text walls for minimal cyber aesthetic */
+        .card-desc,
+        .sublabel,
+        .input-group .hint,
+        .info-row .k small,
+        thead th small,
+        .btn-row-note {
+            display: none !important;
+        }
+
+        /* ── CONFIG PANEL ───────────────────────────────────── */
+        .config-section {
+            margin-bottom: 14px;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .config-grid.full { grid-template-columns: 1fr; }
+        .config-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--white);
+            letter-spacing: 0.5px;
+            font-family: var(--font-mono);
+        }
+
+        .input-group .hint {
+            font-size: 0.68rem;
+            color: var(--dim);
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+
+        /* ── MULTI-REASON PICKER ────────────────────────────── */
+        .reason-picker {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        .reason-picker-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: 0.64rem;
+            color: var(--dim);
+        }
+        .reason-picker-actions { display: flex; gap: 6px; }
+        .reason-list {
+            max-height: 184px;
+            overflow-y: auto;
+            padding: 6px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+        .reason-list::-webkit-scrollbar { width: 6px; }
+        .reason-list::-webkit-scrollbar-thumb {
+            background: rgba(0,212,255,0.2);
+            border-radius: 3px;
+        }
+        .reason-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--white);
+            cursor: pointer;
+            user-select: none;
+            min-width: 0;
+        }
+        .reason-item span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .reason-item:hover { background: rgba(0,212,255,0.07); }
+        .reason-item.selected {
+            background: rgba(0,212,255,0.1);
+            border-color: rgba(0,212,255,0.25);
+        }
+        .reason-item input {
+            width: 14px;
+            height: 14px;
+            padding: 0;
+            flex: 0 0 auto;
+            accent-color: var(--cyan);
+        }
+        @media (max-width: 640px) {
+            .reason-list { grid-template-columns: 1fr; }
+        }
+
+        input, select {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            color: var(--white);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px var(--cyan-dim);
+        }
+
+        input::placeholder { color: var(--dim); opacity: 0.6; }
+
+        select option { background: #1a1a2e; }
+
+        .lookup-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .lookup-row .input-group { flex: 1; }
+
+        /* ── CONFIG DIVIDER ─────────────────────────────────── */
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0 16px;
+        }
+
+        .section-divider .divider-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--dim);
+            white-space: nowrap;
+        }
+
+        .section-divider::before, .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        /* ── BUTTONS ────────────────────────────────────────── */
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-cyan {
+            background: linear-gradient(135deg, var(--cyan), #0099cc);
+            color: #000;
+        }
+
+        .btn-cyan:hover:not(:disabled) {
+            box-shadow: 0 0 20px rgba(0,212,255,0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--green), #00cc66);
+            color: #000;
+            font-size: 1rem;
+            padding: 14px 40px;
+            animation: glow-green 2s ease-in-out infinite;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            box-shadow: 0 0 30px rgba(0,255,136,0.5);
+            transform: translateY(-2px);
+        }
+
+        @keyframes glow-green {
+            0%, 100% { box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+            50% { box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, var(--red), #cc2222);
+            color: #fff;
+            font-size: 1rem;
+            padding: 14px 40px;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            box-shadow: 0 0 30px rgba(255,68,68,0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-verify-start {
+            background: linear-gradient(135deg, #00d2ff, #0066ff);
+            color: #fff;
+            font-size: 1rem;
+            padding: 14px 34px;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+        }
+
+        .btn-verify-start:hover:not(:disabled) {
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-verify-start:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-row-note {
+            font-size: 0.7rem;
+            color: var(--dim);
+            text-align: center;
+            margin-top: 8px;
+            font-family: var(--font-mono);
+        }
+
+        /* ── TARGET INFO ────────────────────────────────────── */
+        .target-card {
+            display: none;
+            margin-top: 16px;
+            animation: slideDown 0.4s ease;
+        }
+
+        .target-card.visible { display: block; }
+
+        @keyframes slideDown {
+            from { opacity: 0; max-height: 0; }
+            to { opacity: 1; max-height: 500px; }
+        }
+
+        .target-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 14px;
+            background: rgba(0,0,0,0.25);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(0,212,255,0.1);
+        }
+
+        .target-avatar {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .target-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .target-name .username {
+            color: var(--orange);
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .target-name .tid {
+            color: var(--dim);
+            font-size: 0.72rem;
+            font-weight: 400;
+            font-family: var(--font-mono);
+        }
+
+        .target-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .target-stat {
+            text-align: center;
+            padding: 10px 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .target-stat .val {
+            font-family: var(--font-mono);
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .target-stat .lbl {
+            font-size: 0.62rem;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 3px;
+        }
+
+        /* ── STAT CARDS ROW (MINIMAL METRICS) ──────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 14px 12px;
+        }
+
+        .stat-card .number {
+            font-family: var(--font-mono);
+            font-size: 1.85rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-card .label {
+            font-size: 0.64rem;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 6px;
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .stat-card.accepted .number { color: var(--green); }
+        .stat-card.rejected .number { color: var(--red); }
+        .stat-card.total .number { color: var(--yellow); }
+
+        /* Circular progress */
+        .progress-ring-wrap {
+            position: relative;
+            width: 58px; height: 58px;
+            margin: 0 auto;
+        }
+
+        .progress-ring-wrap .pct-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+            width: 58px; height: 58px;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 4;
+        }
+
+        .progress-ring .bg { stroke: rgba(255,255,255,0.06); }
+
+        .progress-ring .fg {
+            stroke: var(--cyan);
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        /* ── THREE COLUMN PANELS ────────────────────────────── */
+        .panels-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .panels-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.8rem;
+            gap: 10px;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+
+        .info-row .k {
+            color: var(--dim);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            flex-shrink: 0;
+        }
+
+        .info-row .k small {
+            display: block;
+            font-size: 0.6rem;
+            opacity: 0.7;
+            margin-top: 1px;
+        }
+
+        .info-row .v {
+            font-family: var(--font-mono);
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .badge-sent {
+            color: var(--green);
+            font-weight: 700;
+        }
+
+        .badge-fail {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        /* ── SESSIONS PANEL ─────────────────────────────────── */
+        .sessions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .session-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.25);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(0,255,136,0.08);
+            animation: slideIn 0.3s ease;
+        }
+
+        .session-item .s-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .session-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px rgba(0,255,136,0.5);
+            flex-shrink: 0;
+        }
+
+        .session-dot.expired { background: var(--red); box-shadow: 0 0 6px rgba(255,68,68,0.5); }
+
+        .session-name {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        .session-sid {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--dim);
+            margin-top: 2px;
+        }
+
+        .session-badge {
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .session-badge.active {
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(0,255,136,0.2);
+        }
+
+        .session-badge.expired {
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid rgba(255,68,68,0.2);
+        }
+
+        .sessions-empty {
+            text-align: center;
+            color: var(--dim);
+            font-size: 0.8rem;
+            padding: 20px;
+            font-family: var(--font-mono);
+        }
+
+        /* ── REQUEST LOG TABLE ──────────────────────────────── */
+        .log-section { margin-bottom: 24px; }
+
+        .log-scroll {
+            max-height: 420px;
+            overflow-y: auto;
+            border-radius: var(--radius-sm);
+        }
+
+        .log-scroll::-webkit-scrollbar { width: 6px; }
+        .log-scroll::-webkit-scrollbar-track { background: transparent; }
+        .log-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0,212,255,0.2);
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            font-family: var(--font-mono);
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            padding: 10px 8px;
+            text-align: left;
+            color: var(--cyan);
+            font-weight: 600;
+            font-size: 0.63rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            z-index: 2;
+        }
+
+        thead th small {
+            display: block;
+            font-size: 0.55rem;
+            color: var(--dim);
+            font-weight: 400;
+            margin-top: 1px;
+            letter-spacing: 0;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: background 0.2s;
+            animation: slideIn 0.3s ease;
+        }
+
+        tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+        tbody tr.row-ok { background: rgba(0,255,136,0.03); }
+        tbody tr.row-fail { background: rgba(255,68,68,0.03); }
+
+        tbody td {
+            padding: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ── PROXY PANEL ────────────────────────────────────── */
+        .proxy-section {
+            display: none;
+            margin-bottom: 24px;
+        }
+
+        .proxy-section.visible { display: block; }
+
+        .proxy-table-wrap { overflow-x: auto; margin-top: 10px; }
+        .proxy-table {
+            width: 100%; border-collapse: collapse;
+            font-family: var(--font-mono); font-size: 0.68rem;
+        }
+        .proxy-table th {
+            text-align: left; color: var(--dim); font-weight: 600;
+            padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08);
+            text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+        }
+        .proxy-table td {
+            padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: middle;
+        }
+        .proxy-table tr:last-child td { border-bottom: none; }
+        .proxy-table tr.proxy-disabled { opacity: .5; }
+        .proxy-table .proxy-empty { text-align: center; color: var(--dim); padding: 18px 8px; }
+        .proxy-status {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 2px 7px; border-radius: 4px;
+            font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+        }
+        .proxy-status.ok { color: var(--green); background: var(--green-dim); border: 1px solid rgba(0,255,136,0.25); }
+        .proxy-status.warn { color: var(--orange); background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.18); }
+        .proxy-status.off { color: var(--red); background: var(--red-dim); border: 1px solid rgba(255,68,68,0.25); }
+        .proxy-endpoint { color: var(--purple); word-break: break-all; }
+        .proxy-muted { color: var(--dim); }
+        .proxy-ip { color: var(--green); font-weight: 600; }
+        .proxy-ip.err { color: var(--red); }
+
+        /* ── TOGGLE SWITCH ──────────────────────────────────── */
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px; height: 24px;
+            cursor: pointer;
+        }
+
+        .toggle input { display: none; }
+
+        .toggle .slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            transition: background 0.3s;
+        }
+
+        .toggle .slider::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 18px; height: 18px;
+            background: var(--white);
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle input:checked + .slider {
+            background: var(--cyan);
+        }
+
+        .toggle input:checked + .slider::after {
+            transform: translateX(20px);
+        }
+
+        /* ── PROGRESS BAR ───────────────────────────────────── */
+        .progress-track {
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--cyan));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.5s;
+        }
+
+        /* ── TOAST ──────────────────────────────────────────── */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            animation: toastIn 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.success {
+            background: var(--green-dim);
+            border: 1px solid rgba(0,255,136,0.3);
+            color: var(--green);
+        }
+
+        .toast.error {
+            background: var(--red-dim);
+            border: 1px solid rgba(255,68,68,0.3);
+            color: var(--red);
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ── RESPONSIVE ─────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .panels-row, .panels-row-3 { grid-template-columns: 1fr; }
+            .config-grid, .config-grid.cols3 { grid-template-columns: 1fr; }
+            .logo { font-size: 2rem; letter-spacing: 4px; }
+        }
+
+        @media (max-width: 500px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .container { padding: 10px; }
+            .stat-card .number { font-size: 1.8rem; }
+        }
+
+        .score-high { color: var(--green); }
+        .score-mid  { color: var(--yellow); }
+        .score-low  { color: var(--red); }
+
+        .lat-fast { color: var(--green); }
+        .lat-med  { color: var(--yellow); }
+        .lat-slow { color: var(--red); }
+
+        /* ── ROW DETAIL & FULL RESPONSE STYLES ── */
+        .row-clickable {
+            cursor: pointer;
+        }
+        .row-clickable:hover td {
+            background: rgba(0, 212, 255, 0.05);
+        }
+        .detail-pill {
+            font-size: 0.62rem;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+        .detail-pill:hover {
+            background: var(--cyan);
+            color: #000;
+        }
+        .detail-row td {
+            background: rgba(12, 12, 22, 0.95) !important;
+            padding: 14px 18px !important;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.2) !important;
+        }
+        .row-detail-box {
+            animation: fadeIn 0.25s ease;
+        }
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 8px 16px;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+        }
+        .detail-grid .dk {
+            color: var(--dim);
+        }
+        .detail-grid .dv {
+            color: var(--white);
+            font-weight: 500;
+        }
+        .resp-title {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--orange);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .resp-full-pre {
+            background: rgba(0, 0, 0, 0.65);
+            border: 1px solid rgba(0, 212, 255, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            color: #a6e3a1;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            max-height: 240px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.45;
+        }
+        .btn-xs {
+            padding: 3px 8px;
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 0.74rem;
+            font-family: var(--font-mono);
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        .btn-dim {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--white);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .btn-dim:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: var(--cyan);
+        }
+        .log-indicator-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: var(--green);
+            padding: 5px 12px;
+            border-radius: 14px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* ── COLLAPSIBLE BANNER ── */
+        .banner-toggle {
+            position: absolute;
+            top: 10px; right: 12px;
+            z-index: 10;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--white);
+            width: 30px; height: 30px;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1;
+            backdrop-filter: blur(6px);
+        }
+        .banner-toggle:hover { border-color: var(--cyan); color: var(--cyan); }
+        .banner-minimized .cyber-3d-banner { min-height: 48px; padding: 10px 16px; }
+        .banner-minimized .cyber-3d-banner > *:not(.banner-toggle) { display: none !important; }
+        .banner-minimized #bannerCanvas3D { display: none; }
+        .banner-minimized .cyber-vignette { display: none; }
+
+        /* ── REQUEST LOG CARDS ── */
+        .log-cards { display: flex; flex-direction: column; gap: 8px; }
+        .log-card {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            animation: fadeIn 0.25s ease;
+        }
+        .log-card.row-ok { border-color: rgba(0,255,136,0.18); }
+        .log-card.row-fail { border-color: rgba(255,68,68,0.18); }
+        .log-card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-family: var(--font-mono); font-size: 0.72rem;
+        }
+        .log-card-header .meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .log-card-header .meta .chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;
+        }
+        .log-card-header .chip.ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+        .log-card-header .chip.fail { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,68,68,0.25); }
+        .log-card-header .chip.score { color: var(--cyan); background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); }
+        .log-card-header .chip.lat { color: var(--white); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
+        .log-card-header .chip.http { color: var(--orange); background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.15); }
+        .log-card-header .chip.device { color: var(--cyan); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); }
+        .log-card-header .chip.proxy { color: var(--purple); background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2); }
+        .log-card-header .chip.time { color: var(--dim); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+        .log-card-actions {
+            display: flex; gap: 6px; align-items: center;
+            margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.06); padding-left: 10px;
+        }
+        .log-card-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 6px 14px;
+            padding: 9px 12px;
+            background: rgba(0,0,0,0.18);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--dim);
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+        }
+        .log-card-details strong { color: var(--white); font-weight: 500; word-break: break-all; }
+        .log-card-details .wide { grid-column: 1 / -1; }
+        .log-response-block {
+            padding: 10px 12px 12px;
+            background: rgba(0,0,0,0.25);
+        }
+        .log-response-block .resp-title {
+            font-size: 0.68rem; font-weight: 700; color: var(--orange);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .log-response-block .resp-title .bytes { color: var(--dim); font-weight: 400; font-size: 0.62rem; }
+        .log-response-block pre {
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(0,212,255,0.18);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            color: #a6e3a1;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.45;
+            margin: 0;
+        }
+
+        /* ── MODAL STYLES ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 850px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.85);
+            overflow: hidden;
+        }
+        .modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 22px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .modal-head h3 {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            color: var(--cyan);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: var(--red);
+        }
+        .tg-link-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px;
+            background: rgba(36, 161, 222, 0.12);
+            border: 1px solid rgba(36, 161, 222, 0.45);
+            border-radius: 20px;
+            color: #24A1DE;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .tg-link-btn:hover {
+            background: rgba(36, 161, 222, 0.25);
+            border-color: #24A1DE;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(36, 161, 222, 0.35);
+        }
+
+        /* ── 3D SCARY HACKING BANNER ────────────────────────── */
+        .cyber-3d-wrapper {
+            perspective: 1200px;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cyber-3d-banner {
+            position: relative;
+            min-height: 240px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(8, 8, 14, 0.96) 0%, rgba(24, 6, 10, 0.95) 50%, rgba(9, 9, 15, 0.96) 100%);
+            border: 1px solid rgba(255, 0, 55, 0.4);
+            box-shadow: 
+                0 15px 45px rgba(0, 0, 0, 0.85),
+                0 0 50px rgba(255, 0, 55, 0.15),
+                inset 0 0 60px rgba(255, 0, 55, 0.08);
+            overflow: hidden;
+            transform-style: preserve-3d;
+            transition: transform 0.15s ease-out, box-shadow 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 28px 36px;
+            cursor: crosshair;
+        }
+
+        .cyber-3d-banner:hover {
+            box-shadow: 
+                0 20px 55px rgba(0, 0, 0, 0.95),
+                0 0 75px rgba(255, 0, 55, 0.35),
+                inset 0 0 80px rgba(255, 0, 55, 0.18);
+            border-color: rgba(255, 0, 55, 0.7);
+        }
+
+        /* Scanlines Overlay */
+        .cyber-3d-banner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.18) 0px,
+                rgba(0, 0, 0, 0.18) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* Blood Pulse Vignette */
+        .cyber-vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 75% 50%, rgba(255, 0, 55, 0.18), transparent 65%),
+                        radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.06), transparent 50%);
+            pointer-events: none;
+            z-index: 2;
+            animation: bloodPulse 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes bloodPulse {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* 3D WebGL Canvas */
+        #bannerCanvas3D {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Corner Tech Brackets */
+        .corner-bracket {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-color: #ff0044;
+            border-style: solid;
+            pointer-events: none;
+            z-index: 4;
+            filter: drop-shadow(0 0 4px #ff0044);
+        }
+        .corner-tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+        .corner-tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+        .corner-bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+        .corner-br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+        /* Left Banner Info */
+        .banner-info-left {
+            position: relative;
+            z-index: 4;
+            transform: translateZ(40px);
+            max-width: 620px;
+        }
+
+        .banner-glitch-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(255, 0, 55, 0.15);
+            border: 1px solid rgba(255, 0, 55, 0.45);
+            color: #ff3366;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            box-shadow: 0 0 14px rgba(255, 0, 55, 0.3);
+        }
+
+        .banner-glitch-badge .skull-icon {
+            font-size: 0.9rem;
+            animation: skullFlicker 2s infinite;
+        }
+
+        @keyframes skullFlicker {
+            0%, 100% { opacity: 1; filter: drop-shadow(0 0 6px #ff0033); }
+            50% { opacity: 0.5; filter: none; }
+        }
+
+        .banner-title-3d {
+            font-family: var(--font-mono);
+            font-size: 2.3rem;
+            font-weight: 900;
+            letter-spacing: 5px;
+            color: #ffffff;
+            text-transform: uppercase;
+            line-height: 1.1;
+            margin-bottom: 8px;
+            text-shadow: 
+                0 0 25px rgba(255, 0, 55, 0.8),
+                -2px -1px 0px #ff0055,
+                2px 1px 0px #00f0ff;
+            animation: cyberGlitchText 3.5s infinite;
+        }
+
+        @keyframes cyberGlitchText {
+            0%, 90%, 100% {
+                text-shadow: 0 0 20px rgba(255, 0, 55, 0.8), -2px -1px 0 #ff0055, 2px 1px 0 #00f0ff;
+                transform: skewX(0);
+            }
+            92% {
+                text-shadow: 3px 0 0 #ff0055, -3px 0 0 #00f0ff;
+                transform: skewX(1.5deg);
+            }
+            94% {
+                text-shadow: -3px 0 0 #ff0055, 3px 0 0 #00f0ff;
+                transform: skewX(-1.5deg);
+            }
+            96% {
+                text-shadow: 0 0 30px rgba(255, 0, 55, 1);
+                transform: skewX(0);
+            }
+        }
+
+        .banner-sub {
+            font-family: var(--font-mono);
+            color: var(--dim);
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .banner-sub span.accent {
+            color: #ff0055;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 0, 85, 0.6);
+        }
+
+        .banner-telemetry-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .telemetry-chip {
+            background: rgba(14, 14, 24, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+
+        .telemetry-chip:hover {
+            border-color: rgba(255, 0, 55, 0.45);
+            box-shadow: 0 0 15px rgba(255, 0, 55, 0.25);
+        }
+
+        .telemetry-chip .val {
+            color: #ff3366;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 51, 102, 0.5);
+        }
+
+        /* Right HUD Section */
+        .banner-hud-right {
+            position: relative;
+            z-index: 4;
+            transform: translateZ(50px);
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+        }
+
+        .threat-meter {
+            background: rgba(12, 12, 22, 0.9);
+            border: 1px solid rgba(255, 0, 55, 0.4);
+            border-radius: 8px;
+            padding: 12px 18px;
+            box-shadow: 0 0 25px rgba(255, 0, 55, 0.25);
+            min-width: 220px;
+        }
+
+        .threat-title {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .threat-level {
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #ff0033;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(255, 0, 55, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .radar-sweep {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff0033;
+            box-shadow: 0 0 10px #ff0033;
+            animation: radarBlink 1s infinite alternate;
+        }
+
+        @keyframes radarBlink {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.3); opacity: 1; }
+        }
+
+        .threat-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .threat-fill {
+            width: 94%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff8800, #ff0033);
+            box-shadow: 0 0 8px #ff0033;
+            animation: barThrob 2s infinite ease-in-out;
+        }
+
+        @keyframes barThrob {
+            0%, 100% { width: 94%; }
+            50% { width: 98%; }
+        }
+
+        .live-matrix-stream {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: rgba(255, 60, 90, 0.7);
+            letter-spacing: 1px;
+            line-height: 1.45;
+            text-shadow: 0 0 6px rgba(255, 0, 55, 0.4);
+            max-width: 220px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toasts"></div>
+
+    <div class="container">
+        <!-- HEADER (MINIMAL NAVBAR) -->
+        <header class="header">
+            <div class="header-brand">
+                <div class="logo">⚡ THUNDER</div>
+                <div class="logo-sub">
+                    <span class="tag">v2.1 STABLE</span>
+                    <span class="tag">VOID STRIKE</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <a href="https://t.me/your_bot_username" target="_blank" class="tg-link-btn" title="Open Telegram Remote Bot">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                    <span>@your_bot_username</span>
+                </a>
+                <div class="status-badge stopped" id="statusBadge">
+                    <div class="status-dot"></div>
+                    <span id="statusText">STOPPED</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ══════════════════════════════════════════════════════
+             3D SCARY HACKING BANNER
+             ══════════════════════════════════════════════════════ -->
+        <div class="cyber-3d-wrapper banner-minimized" id="banner3dWrapper">
+            <button class="banner-toggle" id="bannerToggle" onclick="toggleBanner()" title="Expand/collapse banner">▸</button>
+            <div class="cyber-3d-banner" id="banner3d">
+                <!-- 3D WebGL Canvas Scene -->
+                <canvas id="bannerCanvas3D"></canvas>
+                <div class="cyber-vignette"></div>
+
+                <!-- Corner Tech Brackets -->
+                <div class="corner-bracket corner-tl"></div>
+                <div class="corner-bracket corner-tr"></div>
+                <div class="corner-bracket corner-bl"></div>
+                <div class="corner-bracket corner-br"></div>
+
+                <!-- Left Content -->
+                <div class="banner-info-left">
+                    <div class="banner-glitch-badge">
+                        <span class="skull-icon">☠</span>
+                        <span>SHADOW C2 // THREAT LEVEL: LETHAL</span>
+                    </div>
+                    <div class="banner-title-3d">THUNDER // VOID</div>
+                    <div class="banner-sub">
+                        <span>PROJECT: <span class="accent">VOID STRIKE</span></span>
+                        <span>•</span>
+                        <span>ENGINE: <span class="accent">Gorgon-Argus v2.1</span></span>
+                    </div>
+                    <div class="banner-telemetry-grid">
+                        <div class="telemetry-chip">
+                            <span class="dot" style="background:#00ff88;box-shadow:0 0 8px #00ff88;width:6px;height:6px;border-radius:50%;"></span>
+                            <span>REDIS VAULT:</span>
+                            <span class="val" id="bannerSessionCount">896 IDENTITIES</span>
+                        </div>
+                        <div class="telemetry-chip">
+                            <span>MODE:</span>
+                            <span class="val" style="color:#00d4ff;">DISTRIBUTED MESH</span>
+                        </div>
+                        <div class="telemetry-chip">
+                            <span>ENCRYPTION:</span>
+                            <span class="val">RSA-4096 / TLS 1.3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right HUD -->
+                <div class="banner-hud-right">
+                    <div class="threat-meter">
+                        <div class="threat-title">STRIKE READINESS</div>
+                        <div class="threat-level">
+                            <div class="radar-sweep"></div>
+                            <span>MAXIMUM // ARMED</span>
+                        </div>
+                        <div class="threat-bar">
+                            <div class="threat-fill"></div>
+                        </div>
+                    </div>
+                    <div class="live-matrix-stream" id="matrixStream">
+                        0x7F454C46 0xDEADBEEF<br>
+                        0xVOID_SYS 0xROTATING_C2<br>
+                        [896 SESSIONS PRIMED]
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════
+             CONFIG PANEL
+             ══════════════════════════════════════════════════════ -->
+        <section class="card config-section">
+            <div class="card-title">Report Configuration</div>
+            <div class="card-desc">
+                Set up your target and reporting parameters below. All sessions are loaded automatically from the Redis database — no cookie input required.
+            </div>
+
+            <!-- ── STEP 1: Target ── -->
+            <div class="section-divider"><span class="divider-label">Step 1 — Target Account</span></div>
+
+            <div class="config-grid full" style="margin-bottom:0;">
+                <div class="lookup-row">
+                    <div class="input-group">
+                        <label>TikTok Username</label>
+                        <input type="text" id="username" placeholder="@username (without the @)" autocomplete="off">
+                        <span class="hint">Enter the TikTok username of the account you want to report. Click LOOKUP to verify and load their profile info.</span>
+                    </div>
+                    <button class="btn btn-cyan" id="btnLookup" onclick="lookupUser()">LOOKUP</button>
+                </div>
+            </div>
+
+            <!-- Target Info (shown after lookup) -->
+            <div class="target-card" id="targetCard">
+                <div class="target-header">
+                    <div class="target-avatar" id="targetAvatar">?</div>
+                    <div>
+                        <div class="target-name">
+                            <span id="targetName">—</span><br>
+                            <span class="username" id="targetUsername">@—</span>
+                            &nbsp; <span class="tid" id="targetId"></span>
+                        </div>
+                        <div id="tBio" style="margin-top:6px;font-size:0.78rem;color:var(--dim);font-style:italic;"></div>
+                    </div>
+                </div>
+                <div class="target-stats-grid">
+                    <div class="target-stat">
+                        <div class="val" style="color:var(--green)" id="tFollowers">0</div>
+                        <div class="lbl">Followers</div>
+                    </div>
+                    <div class="target-stat">
+                        <div class="val" style="color:var(--cyan)" id="tFollowing">0</div>
+                        <div class="lbl">Following</div>
+                    </div>
+                    <div class="target-stat">
+                        <div class="val" style="color:var(--yellow)" id="tLikes">0</div>
+                        <div class="lbl">Total Likes</div>
+                    </div>
+                    <div class="target-stat">
+                        <div class="val" style="color:var(--orange)" id="tCountry">—</div>
+                        <div class="lbl">Country</div>
+                    </div>
+                    <div class="target-stat">
+                        <div class="val" style="color:var(--purple)" id="tPrivate">—</div>
+                        <div class="lbl">Private</div>
+                    </div>
+                    <div class="target-stat">
+                        <div class="val" style="color:var(--dim)" id="tDate">—</div>
+                        <div class="lbl">Joined</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── STEP 2: Report Settings ── -->
+            <div class="section-divider"><span class="divider-label">Step 2 — Report Settings</span></div>
+
+            <div class="config-grid">
+                <div class="input-group">
+                    <label>Report Reasons <span id="reasonCount" style="color:var(--cyan); font-weight:500;">1 selected</span></label>
+                    <div class="reason-picker">
+                        <div class="reason-picker-head">
+                            <span>Multi-select · rotates per request</span>
+                            <div class="reason-picker-actions">
+                                <button type="button" class="btn-xs btn-dim" onclick="selectAllReasons(true)">All</button>
+                                <button type="button" class="btn-xs btn-dim" onclick="selectAllReasons(false)">None</button>
+                            </div>
+                        </div>
+                        <div class="reason-list" id="reasonList">
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="1" checked> <span>🔞 Nudity &amp; Sexual Content</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="2"> <span>🗣️ Hate Speech &amp; Discrimination</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="3"> <span>👊 Bullying &amp; Harassment</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="4"> <span>⚠️ Violence &amp; Dangerous Content</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="5"> <span>💔 Suicide &amp; Self-harm</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="6"> <span>🚫 Illegal Activities</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="7"> <span>💰 Frauds &amp; Scams</span></label>
+                            <label class="reason-item"><input type="checkbox" class="reason-check" value="8"> <span>📢 Spam &amp; Misleading Info</span></label>
+                        </div>
+                    </div>
+                    <span class="hint">Select one or more categories. Each report rotates through the selected reasons.</span>
+                </div>
+                <div class="input-group">
+                    <label>Reporting Mode</label>
+                    <select id="report_mode" onchange="onModeChange()">
+                        <option value="mobile">📱 Mobile App Mode — Android emulation, aid=1233</option>
+                        <option value="web" selected>🌐 Web Browser Mode — Browser session, aid=1988</option>
+                    </select>
+                    <span class="hint">
+                        <b style="color:var(--cyan)">Web Mode</b> uses your real browser cookies from the Redis session pool — more stable, no device spoofing needed.<br>
+                        <b style="color:var(--orange)">Mobile Mode</b> emulates an Android device with Gorgon/Argus cryptographic signatures — bypasses some web-only rate limits.
+                    </span>
+                </div>
+            </div>
+
+            <!-- ── SESSION CONTROLS (WEB MODE) ── -->
+            <div id="webSessionGroup" style="margin-top:14px; padding:14px; background:rgba(0,212,255,0.03); border:1px solid rgba(0,212,255,0.12); border-radius:var(--radius-sm);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                    <label style="margin:0; font-weight:700; color:var(--cyan); font-size:0.85rem; display:flex; align-items:center; gap:8px;">
+                        <span>🔑 TikTok Account Session</span>
+                        <span id="sessionStatusBadge" class="session-badge active">Detecting…</span>
+                    </label>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="btn-xs btn-cyan" id="btnCheckActiveSession" onclick="checkSelectedSession()">🔍 Test Session</button>
+                        <button type="button" class="btn-xs btn-dim" onclick="openAddSessionModal()">+ New Session</button>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
+                    <div style="display:flex; flex-direction:column; gap:6px; min-width:0;">
+                        <input type="text" id="sessionSearch" placeholder="🔎 Search session by label or @user…" oninput="renderSessionDropdown()" style="font-family:var(--font-mono); font-size:0.76rem; padding:7px 10px;">
+                        <select id="session_select" onchange="onSessionSelectChange()" style="font-family:var(--font-mono); font-size:0.82rem; width:100%;">
+                            <option value="pool">🔄 Auto-Rotate All Active Sessions (Pool)</option>
+                            <option value="custom">✏️ Enter Custom Cookie Manually</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                        <button type="button" class="btn-xs btn-dim" onclick="loadSessions()" title="Reload sessions from Redis/local store">↻ Refresh</button>
+                        <span style="font-size:0.75rem; color:var(--dim); font-family:var(--font-mono);" id="sessionSelectedInfo">—</span>
+                    </div>
+                </div>
+                <div id="customCookieBox" style="display:none; margin-top:10px;">
+                    <label style="font-size:0.75rem; color:var(--dim); margin-bottom:4px; display:block;">Paste raw cookie string or sessionid for this attack:</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="customCookieInput" placeholder="sessionid=xxxx; or raw cookie header" style="flex:1; font-family:var(--font-mono); font-size:0.78rem;">
+                        <button type="button" class="btn-xs btn-cyan" onclick="checkSelectedSession()">Verify</button>
+                    </div>
+                </div>
+                <div style="margin-top:8px; font-size:0.72rem; color:var(--dim);">
+                    Chosen session is authenticated against TikTok's passport servers to ensure requests won't be discarded.
+                </div>
+
+                <!-- Emulated Web Device / Browser Profile -->
+                <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                        <label style="font-size:0.75rem; color:var(--cyan); font-weight:700; margin:0;">
+                            🖥️ Emulated Web Device &amp; Browser Engine
+                        </label>
+                        <span style="font-size:0.68rem; color:var(--dim); font-family:var(--font-mono);">Authentic Snowflake IDs (73/74/72/75...)</span>
+                    </div>
+                    <select id="web_device" onchange="updateWebDeviceDetail()" style="font-family:var(--font-mono); font-size:0.82rem; width:100%;">
+                        <option value="random" selected>🎲 Auto-Rotate Diverse Web Devices (Windows, Mac, Linux, Mobile Web)</option>
+                    </select>
+                    <div id="webDeviceDetail" style="display:none; margin-top:8px; padding:8px 10px; border-radius:6px; background:rgba(0,212,255,0.06); border:1px solid rgba(0,212,255,0.18); font-size:0.72rem; color:var(--dim); line-height:1.5;"></div>
+                    <div style="margin-top:6px; font-size:0.7rem; color:var(--dim);">
+                        Rotates realistic OS platforms, browser versions, Sec-Ch-Ua client hints, and authentic snowflake IDs instead of static fingerprints.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── STEP 3: Speed & Proxy ── -->
+            <div class="section-divider"><span class="divider-label">Step 3 — Speed &amp; Proxy</span></div>
+
+            <div class="config-grid">
+                <div class="input-group">
+                    <label>Delay Between Reports (seconds)</label>
+                    <input type="number" id="delay" value="1.0" min="0" step="0.1">
+                    <span class="hint">Wait time between each report attempt. Use <b>≥ 1.0s</b> to avoid triggering TikTok's flood protection. Lower values increase speed at the cost of stability.</span>
+                </div>
+                <div class="input-group">
+                    <label>Use Proxy Pool</label>
+                    <div class="toggle-wrap" style="margin-top:4px;">
+                        <label class="toggle">
+                            <input type="checkbox" id="use_proxy" onchange="toggleProxyInput()">
+                            <div class="slider"></div>
+                        </label>
+                        <span style="font-size:0.8rem;color:var(--dim)" id="proxyLabel">Disabled</span>
+                    </div>
+                    <span class="hint">Route requests through a list of proxies to distribute traffic across different IPs. Required if your IP gets temporarily blocked by TikTok.</span>
+                </div>
+            </div>
+
+            <div class="input-group" id="proxyFileGroup" style="display:none; margin-top:12px;">
+                <label>Proxy List File Path</label>
+                <input type="text" id="proxy_file" value="proxies.txt" placeholder="proxies.txt" onchange="loadProxies()">
+                <span class="hint">Path to a plain text file with one proxy per line. Supported formats: <code style="color:var(--cyan)">http://ip:port</code> or <code style="color:var(--cyan)">http://user:pass@ip:port</code>. Every line is used round-robin; rotating gateways get a fresh exit IP on each request.</span>
+            </div>
+
+            <!-- ── START / STOP ── -->
+            <div class="btn-row">
+                <button class="btn btn-verify-start" id="btnVerifyAndStart" onclick="checkSessionThenStart()" title="Check TikTok session validity first with servers, then start attack automatically">
+                    🛡️ CHECK SESSION &amp; START
+                </button>
+                <button class="btn btn-start" id="btnStart" onclick="startReporting()" title="Start attack immediately without pre-checking">
+                    ⚡ START REPORTING
+                </button>
+                <button class="btn btn-stop" id="btnStop" onclick="stopReporting()" disabled>
+                    ■ STOP
+                </button>
+            </div>
+            <div class="btn-row-note">
+                <span style="color:var(--cyan)">🛡️ Check Session &amp; Start</span> tests account validity with TikTok first, then launches attack · <span style="color:var(--green)">⚡ Start</span> begins immediately
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════
+             STATS ROW
+             ══════════════════════════════════════════════════════ -->
+        <section class="stats-row">
+            <div class="card stat-card accepted">
+                <div class="number" id="sAccepted">0</div>
+                <div class="label">Accepted</div>
+                <div class="sublabel">Reports confirmed by TikTok</div>
+            </div>
+            <div class="card stat-card rejected">
+                <div class="number" id="sRejected">0</div>
+                <div class="label">Rejected</div>
+                <div class="sublabel">Failed / error responses</div>
+            </div>
+            <div class="card stat-card total">
+                <div class="number" id="sTotal">0</div>
+                <div class="label">Total Sent</div>
+                <div class="sublabel">All requests dispatched</div>
+            </div>
+            <div class="card stat-card">
+                <div class="progress-ring-wrap">
+                    <svg class="progress-ring" width="80" height="80">
+                        <circle class="bg" cx="40" cy="40" r="34"/>
+                        <circle class="fg" id="progressRing" cx="40" cy="40" r="34"
+                                stroke-dasharray="213.628" stroke-dashoffset="213.628"/>
+                    </svg>
+                    <div class="pct-text" id="sRate">0%</div>
+                </div>
+                <div class="label" style="margin-top:8px;">Success Rate</div>
+                <div class="sublabel">Accepted ÷ Total</div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════
+             LIVE STATS  +  LAST REQUEST  +  SESSIONS
+             ══════════════════════════════════════════════════════ -->
+        <section class="panels-row-3">
+            <!-- Live Stats -->
+            <div class="card">
+                <div class="card-title">Live Stats</div>
+                <div class="card-desc">Real-time metrics updated after every report attempt.</div>
+
+                <div class="info-row">
+                    <span class="k">Elapsed<small>Time since start</small></span>
+                    <span class="v" id="pElapsed">00:00:00</span>
+                </div>
+                <div class="info-row">
+                    <span class="k">Delay<small>Report interval</small></span>
+                    <span class="v" id="pDelay">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="k">CAPTCHA Hits<small>Challenges triggered</small></span>
+                    <span class="v" id="pCaptcha">0</span>
+                </div>
+                <div class="info-row">
+                    <span class="k">Blocked Devices<small>IDs rejected by TikTok</small></span>
+                    <span class="v" id="pBlocked">0</span>
+                </div>
+
+                <div style="margin-top:14px;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--dim);margin-bottom:4px;">
+                        <span>Acceptance Progress</span>
+                        <span id="progressLabel">0 / 0</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressBar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Request -->
+            <div class="card">
+                <div class="card-title">Last Request</div>
+                <div class="card-desc">Details of the most recently sent report — updated live.</div>
+                <div id="lastReqContent">
+                    <div style="color:var(--dim);font-size:0.85rem;text-align:center;padding:30px 0;">Waiting for first request…</div>
+                </div>
+            </div>
+
+            <!-- Sessions -->
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div class="card-title" style="margin-bottom:0;">TikTok Sessions</div>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn-xs btn-cyan" onclick="openAddSessionModal()">+ Add Session</button>
+                        <button class="btn-xs btn-dim" onclick="checkAllSessions()">Verify All</button>
+                    </div>
+                </div>
+                <div class="card-desc">TikTok accounts stored for Web reporting. Sessions are automatically checked and verified with TikTok before attack start.</div>
+                <div class="sessions-list" id="sessionsList">
+                    <div class="sessions-empty">Loading sessions…</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════
+             PROXY STATUS
+             ══════════════════════════════════════════════════════ -->
+        <section class="card proxy-section visible" id="proxySection">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <div class="card-title" style="margin-bottom:4px;">Proxy Pool</div>
+                    <div class="card-desc" style="margin-bottom:0;">Every configured endpoint. Requests rotate round-robin; rotating gateways get a fresh exit IP on each request.</div>
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="btn-xs btn-cyan" onclick="loadProxies()">↻ Refresh</button>
+                    <button class="btn-xs btn-dim" onclick="checkAllProxyExitIps(this)">🌐 Check Exit IPs</button>
+                </div>
+            </div>
+            <div class="info-row" style="margin-top:10px;">
+                <span class="k">Pool<small>Active / Total / Limits</small></span>
+                <span class="v" id="proxyPoolStats">—</span>
+            </div>
+            <div class="proxy-table-wrap">
+                <table class="proxy-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Endpoint</th>
+                            <th>Latency</th>
+                            <th>Success</th>
+                            <th>Failures</th>
+                            <th>Score</th>
+                            <th>Exit IP</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="proxyRows">
+                        <tr><td colspan="8" class="proxy-empty">Loading proxies…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════
+             REQUEST LOG
+             ══════════════════════════════════════════════════════ -->
+        <section class="card log-section">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                <div>
+                    <div class="card-title" style="margin-bottom:4px;">Request &amp; Attack Log</div>
+                    <div class="card-desc" style="margin-bottom:0;">
+                        Full history of every report sent this session. Click any row or <b>[View Detail ▸]</b> to see the complete server response body, hardware IDs, and network headers.
+                        <b style="color:var(--green)">✔</b> = accepted &nbsp;|&nbsp;
+                        <b style="color:var(--red)">✗</b> = rejected &nbsp;|&nbsp;
+                        <b style="color:var(--cyan)">Score</b> = 0–10 &nbsp;|&nbsp;
+                        <b style="color:var(--yellow)">API</b> = TikTok server code
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div id="activeLogPill" class="log-indicator-pill" style="display:none;">
+                        <div class="pulse-dot"></div>
+                        <span>Saving log: <b id="activeLogName">—</b></span>
+                    </div>
+                    <button class="btn-sm btn-cyan" id="btnDownloadLog" onclick="downloadCurrentLog()" title="Download JSONL log file of this attack session">📥 Download Attack Log</button>
+                    <button class="btn-sm btn-dim" onclick="openLogsModal()" title="Browse and download saved log files">📂 All Logs</button>
+                    <button class="btn-sm btn-dim" onclick="clearLogTable()" title="Clear display table (does not delete saved file)">Clear View</button>
+                </div>
+            </div>
+
+            <div class="log-cards" id="logCards"></div>
+        </section>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         MODAL 1: RESPONSE INSPECTOR
+         ══════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="respModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3 id="modalTitle">⚡ Response Inspector</h3>
+                <button class="modal-close" onclick="closeModal('respModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid" id="modalMetaGrid"></div>
+                <div class="resp-title">
+                    <span>Full Server Response Body</span>
+                    <button class="btn-xs btn-cyan" id="btnModalCopy" onclick="copyModalResponse()">📋 Copy Body</button>
+                </div>
+                <pre class="resp-full-pre" id="modalRespBody" style="max-height:420px;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         MODAL 2: ATTACK LOGS ARCHIVE
+         ══════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="logsModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>📂 Saved Attack Logs (JSONL)</h3>
+                <button class="modal-close" onclick="closeModal('logsModal')">&times;</button>
+            </div>
+                <div id="logsFileList" style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="text-align:center; color:var(--dim); padding:20px;">Loading log files...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         MODAL 3: ADD & VERIFY SESSION
+         ══════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="addSessionModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>🔑 Add &amp; Validate TikTok Session</h3>
+                <button class="modal-close" onclick="closeModal('addSessionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size:0.75rem; color:var(--dim); margin-bottom:12px; font-family:var(--font-mono);">
+                    Paste your TikTok browser Cookie header or raw <code style="color:var(--cyan)">sessionid</code>. It will be immediately validated against TikTok servers before being stored.
+                </div>
+                <div class="input-group" style="margin-bottom:10px;">
+                    <label>Account Label (Optional)</label>
+                    <input type="text" id="sessionLabel" placeholder="e.g. Bot_Account_1">
+                </div>
+                <div class="input-group" style="margin-bottom:14px;">
+                    <label>Cookie String or sessionid</label>
+                    <textarea id="sessionCookieInput" rows="4" placeholder="sessionid=xxxx; sessionid_ss=xxxx; or just your sessionid value" style="width:100%; background:var(--bg-box); color:var(--text); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px; font-family:var(--font-mono); font-size:0.8rem;"></textarea>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button class="btn-sm btn-dim" onclick="closeModal('addSessionModal')">Cancel</button>
+                    <button class="btn-sm btn-cyan" id="btnSaveSession" onclick="submitNewSession()">✓ Verify &amp; Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let isRunning = false;
+        let startTime = null;
+        let elapsedInterval = null;
+
+        // ── UTILITIES ──────────────────────────────────────────
+        function fmt(n) {
+            if (n === undefined || n === null) return '—';
+            return Number(n).toLocaleString();
+        }
+
+        function scoreColor(s) {
+            if (s >= 8) return 'score-high';
+            if (s >= 5) return 'score-mid';
+            return 'score-low';
+        }
+
+        function latColor(ms) {
+            if (ms <= 0) return 'lat-med';
+            if (ms < 300) return 'lat-fast';
+            if (ms < 700) return 'lat-med';
+            return 'lat-slow';
+        }
+
+        function toggleBanner() {
+            const w = document.getElementById('banner3dWrapper');
+            const btn = document.getElementById('bannerToggle');
+            if (!w || !btn) return;
+            const minimized = w.classList.toggle('banner-minimized');
+            btn.textContent = minimized ? '▸' : '▾';
+            btn.title = minimized ? 'Expand banner' : 'Collapse banner';
+        }
+
+        function toast(msg, type='success') {
+            const c = document.getElementById('toasts');
+            const d = document.createElement('div');
+            d.className = 'toast ' + type;
+            d.textContent = msg;
+            c.appendChild(d);
+            setTimeout(() => d.remove(), 4000);
+        }
+
+        function updateProgress(rate) {
+            const circ = 2 * Math.PI * 34;
+            const offset = circ - (rate / 100) * circ;
+            document.getElementById('progressRing').style.strokeDashoffset = offset;
+            document.getElementById('sRate').textContent = rate.toFixed(1) + '%';
+        }
+
+        function toggleProxyInput() {
+            const on = document.getElementById('use_proxy').checked;
+            document.getElementById('proxyFileGroup').style.display = on ? '' : 'none';
+            document.getElementById('proxyLabel').textContent = on ? 'Enabled' : 'Disabled';
+        }
+
+        // ── PROXY POOL PANEL ───────────────────────────────────
+        let proxyPoolData = [];
+        let proxyExitIps = {};
+        let proxyFileInUse = 'proxies.txt';
+
+        function proxyFileValue() {
+            const el = document.getElementById('proxy_file');
+            return (el && el.value.trim()) || 'proxies.txt';
+        }
+
+        async function loadProxies() {
+            try {
+                const res = await fetch('/api/proxies?file=' + encodeURIComponent(proxyFileValue()));
+                const data = await res.json();
+                proxyPoolData = data.proxies || [];
+                proxyFileInUse = data.file || proxyFileValue();
+                renderProxyRows(data.stats);
+            } catch (e) {
+                const tbody = document.getElementById('proxyRows');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="proxy-empty">Could not load proxies.</td></tr>';
+            }
+        }
+
+        function renderProxyRows(stats) {
+            const statsEl = document.getElementById('proxyPoolStats');
+            if (statsEl && stats) statsEl.textContent = stats;
+            const tbody = document.getElementById('proxyRows');
+            if (!tbody) return;
+
+            if (!proxyPoolData.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="proxy-empty">No proxies configured. Add one endpoint per line to <b>data/proxies.txt</b>.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            proxyPoolData.forEach((p, i) => {
+                const eligible = p.enabled && p.within_latency_limit;
+                const statusCls = p.enabled ? (p.within_latency_limit ? 'ok' : 'warn') : 'off';
+                const statusText = p.enabled ? (p.within_latency_limit ? 'Active' : 'Slow') : 'Disabled';
+                const latency = (p.latency_ms === null || p.latency_ms === undefined)
+                    ? '<span class="proxy-muted">unmeasured</span>'
+                    : `${p.latency_ms} ms`;
+                const success = `${p.success_count}/${p.total_count}` +
+                    (p.total_count ? ` (${Math.round(p.success_rate * 100)}%)` : '');
+                const exit = proxyExitIps[p.label];
+                let exitHtml = '<span class="proxy-muted">—</span>';
+                if (exit && exit.status === 'ok') {
+                    exitHtml = `<span class="proxy-ip">${escHtml(exit.ip || '—')}</span>` +
+                        (exit.latency_ms != null ? ` <span class="proxy-muted">${exit.latency_ms}ms</span>` : '');
+                } else if (exit && exit.status === 'error') {
+                    exitHtml = `<span class="proxy-ip err" title="${escHtml(exit.msg || '')}">error</span>`;
+                }
+                const tr = document.createElement('tr');
+                if (!eligible) tr.className = 'proxy-disabled';
+                tr.innerHTML = `
+                    <td><span class="proxy-status ${statusCls}">${statusText}</span></td>
+                    <td class="proxy-endpoint">${escHtml(p.label)}</td>
+                    <td>${latency}</td>
+                    <td>${success}</td>
+                    <td>${p.failures}</td>
+                    <td>${(p.score ?? 0).toFixed(2)}</td>
+                    <td>${exitHtml}</td>
+                    <td><button class="btn-xs btn-dim" onclick="checkProxyExitIp(${i})">Check IP</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function checkProxyExitIp(index) {
+            const p = proxyPoolData[index];
+            if (!p) return;
+            try {
+                const res = await fetch('/api/proxy/check', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({file: proxyFileInUse, index})
+                });
+                proxyExitIps[p.label] = await res.json();
+            } catch (e) {
+                proxyExitIps[p.label] = {status: 'error', msg: String(e)};
+            }
+            renderProxyRows();
+        }
+
+        async function checkAllProxyExitIps(btn) {
+            if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+            try {
+                for (let i = 0; i < proxyPoolData.length; i++) {
+                    await checkProxyExitIp(i);
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '🌐 Check Exit IPs'; }
+            }
+        }
+
+        let storedSessionsList = [];
+        let webDevicesCache = [];
+
+        async function loadWebDevices() {
+            const sel = document.getElementById('web_device');
+            if (!sel) return;
+            try {
+                const res = await fetch('/api/web-devices');
+                const data = await res.json();
+                webDevicesCache = data.devices || [];
+                const current = sel.value || 'random';
+                sel.innerHTML = '<option value="random">🎲 Auto-Rotate Diverse Web Devices (Windows, Mac, Linux, Mobile Web)</option>';
+                webDevicesCache.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = '🖥️ ' + (d.full_name || `${d.brand || ''} ${d.type || ''}`.trim() || d.id);
+                    sel.appendChild(opt);
+                });
+                if ([...sel.options].some(o => o.value === current)) sel.value = current;
+                updateWebDeviceDetail();
+            } catch (e) {
+                // keep the auto-rotate option if the endpoint is unavailable
+            }
+        }
+
+        function updateWebDeviceDetail() {
+            const sel = document.getElementById('web_device');
+            const box = document.getElementById('webDeviceDetail');
+            if (!sel || !box) return;
+            const d = webDevicesCache.find(x => x.id === sel.value);
+            if (!d) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            box.style.display = '';
+            box.innerHTML =
+                '<b style="color:var(--cyan)">' + escHtml(d.full_name || d.id) + '</b><br>' +
+                'Platform: <b>' + escHtml(d.device_platform || '—') + '</b>' +
+                ' · Brand: <b>' + escHtml(d.brand || '—') + '</b>' +
+                ' · Type: <b>' + escHtml(d.type || '—') + '</b><br>' +
+                'UA: <span style="font-family:var(--font-mono)">' + escHtml((d.user_agent || '').slice(0, 110)) + '…</span>';
+        }
+
+        function onModeChange() {
+            const mode = document.getElementById('report_mode').value;
+            const sGroup = document.getElementById('webSessionGroup');
+            if (sGroup) {
+                sGroup.style.display = (mode === 'web') ? 'block' : 'none';
+            }
+        }
+
+        function updateReasonCount() {
+            const checks = Array.from(document.querySelectorAll('.reason-check'));
+            const count = checks.filter(c => c.checked).length;
+            const el = document.getElementById('reasonCount');
+            if (el) el.textContent = `${count} selected`;
+            checks.forEach(c => {
+                const item = c.closest('.reason-item');
+                if (item) item.classList.toggle('selected', c.checked);
+            });
+        }
+
+        function getSelectedReasons() {
+            return Array.from(document.querySelectorAll('.reason-check:checked')).map(c => c.value);
+        }
+
+        function selectAllReasons(state) {
+            document.querySelectorAll('.reason-check').forEach(c => { c.checked = !!state; });
+            updateReasonCount();
+        }
+
+        function updateSessionSelectDropdown(sessions) {
+            if (Array.isArray(sessions)) storedSessionsList = sessions;
+            renderSessionDropdown();
+        }
+
+        function renderSessionDropdown() {
+            const sel = document.getElementById('session_select');
+            if (!sel) return;
+            const currentVal = sel.value || 'pool';
+            const query = (document.getElementById('sessionSearch')?.value || '').trim().toLowerCase();
+
+            sel.innerHTML = '<option value="pool">🔄 Auto-Rotate All Active Sessions (Pool)</option>';
+
+            let shown = 0;
+            storedSessionsList.forEach(s => {
+                const ident = s.identifier || s.label;
+                if (!ident) return;
+                const haystack = `${s.label || ''} ${s.user || ''} ${s.identifier || ''}`.toLowerCase();
+                if (query && !haystack.includes(query)) return;
+                const isAct = s.status === 'active';
+                const opt = document.createElement('option');
+                opt.value = ident;
+                const uLabel = s.user ? `@${s.user}` : (s.label || 'Account');
+                opt.textContent = `👤 ${s.label || 'Account'} (${uLabel}) ${isAct ? '✔ Active' : '⚠ Expired'}`;
+                sel.appendChild(opt);
+                shown++;
+            });
+
+            if (query && shown === 0) {
+                const opt = document.createElement('option');
+                opt.value = '__no_match__';
+                opt.disabled = true;
+                opt.textContent = 'No sessions match your search';
+                sel.appendChild(opt);
+            }
+
+            const customOpt = document.createElement('option');
+            customOpt.value = 'custom';
+            customOpt.textContent = '✏️ Enter Custom Cookie Manually';
+            sel.appendChild(customOpt);
+
+            if (Array.from(sel.options).some(o => o.value === currentVal && !o.disabled)) {
+                sel.value = currentVal;
+            } else {
+                sel.value = 'pool';
+            }
+            onSessionSelectChange();
+        }
+
+        function onSessionSelectChange() {
+            const sel = document.getElementById('session_select');
+            const infoSpan = document.getElementById('sessionSelectedInfo');
+            const customBox = document.getElementById('customCookieBox');
+            if (!sel) return;
+
+            if (sel.value === 'custom') {
+                if (customBox) customBox.style.display = 'block';
+                if (infoSpan) infoSpan.textContent = 'Custom Cookie';
+                updateSessionBadgeUI(null, 'Custom Cookie Input');
+            } else {
+                if (customBox) customBox.style.display = 'none';
+                if (sel.value === 'pool') {
+                    const activeCount = storedSessionsList.filter(s => s.status === 'active').length;
+                    if (infoSpan) infoSpan.textContent = `Pool (${activeCount} active)`;
+                    updateSessionBadgeUI(activeCount > 0, activeCount > 0 ? `${activeCount} Active in Pool` : 'Pool Empty');
+                } else {
+                    const chosen = storedSessionsList.find(s => (s.identifier || s.label) === sel.value);
+                    if (chosen) {
+                        const isAct = chosen.status === 'active';
+                        const u = chosen.user ? `@${chosen.user}` : 'Saved Account';
+                        if (infoSpan) infoSpan.textContent = u;
+                        updateSessionBadgeUI(isAct, isAct ? `Active (${u})` : 'Expired');
+                    }
+                }
+            }
+        }
+
+        function updateSessionBadgeUI(isActive, text) {
+            const badge = document.getElementById('sessionStatusBadge');
+            if (!badge) return;
+            if (isActive === true) {
+                badge.className = 'session-badge active';
+                badge.textContent = '🟢 ' + text;
+            } else if (isActive === false) {
+                badge.className = 'session-badge expired';
+                badge.textContent = '🔴 ' + text;
+            } else {
+                badge.className = 'session-badge';
+                badge.style.background = 'rgba(0,212,255,0.15)';
+                badge.style.color = 'var(--cyan)';
+                badge.style.border = '1px solid rgba(0,212,255,0.3)';
+                badge.textContent = '🔵 ' + text;
+            }
+        }
+
+        // ── SESSIONS ───────────────────────────────────────────
+        async function loadSessions() {
+            try {
+                const res = await fetch('/api/sessions');
+                const data = await res.json();
+                storedSessionsList = data.sessions || [];
+                const bCountEl = document.getElementById('bannerSessionCount');
+                if (bCountEl && storedSessionsList) {
+                    bCountEl.textContent = `${storedSessionsList.length} IDENTITIES`;
+                }
+                const list = document.getElementById('sessionsList');
+
+                updateSessionSelectDropdown(storedSessionsList);
+
+                if (!storedSessionsList || storedSessionsList.length === 0) {
+                    list.innerHTML = '<div class="sessions-empty">No active TikTok sessions saved.<br><button class="btn-xs btn-cyan" style="margin-top:8px;" onclick="openAddSessionModal()">+ Add Session Now</button></div>';
+                    updateSessionBadgeUI(false, 'No Saved Sessions');
+                    return;
+                }
+
+                list.innerHTML = '';
+                storedSessionsList.forEach(s => {
+                    const isActive = s.status === 'active';
+                    const sid = s.sessionid ? s.sessionid.substring(0, 16) + '…' : '—';
+                    const userTag = s.user ? `<span style="color:var(--cyan);font-weight:600;margin-left:6px;">@${escHtml(s.user)}</span>` : '';
+                    const div = document.createElement('div');
+                    div.className = 'session-item';
+                    div.innerHTML = `
+                        <div class="s-left">
+                            <div class="session-dot ${isActive ? '' : 'expired'}"></div>
+                            <div>
+                                <div class="session-name">${escHtml(s.label || s.identifier || 'Unknown')} ${userTag}</div>
+                                <div class="session-sid">sid: ${escHtml(sid)}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="session-badge ${isActive ? 'active' : 'expired'}">${isActive ? 'ACTIVE' : 'EXPIRED'}</span>
+                            <button class="btn-xs btn-cyan" onclick="verifySingleSession('${escHtml(s.identifier || s.label)}')" title="Check validity with TikTok">🔍 Check</button>
+                            <button class="btn-xs btn-dim" onclick="deleteSession('${escHtml(s.identifier || s.label)}')" title="Delete this session" style="color:var(--red);">🗑️</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+
+                const activeCount = storedSessionsList.filter(s => s.status === 'active').length;
+                if (activeCount > 0) {
+                    updateSessionBadgeUI(true, `${activeCount} Active in Pool`);
+                } else {
+                    updateSessionBadgeUI(false, 'All Sessions Expired');
+                }
+            } catch(e) {
+                document.getElementById('sessionsList').innerHTML =
+                    '<div class="sessions-empty">Could not load sessions.</div>';
+            }
+        }
+
+        async function checkSelectedSession() {
+            const sel = document.getElementById('session_select');
+            const btn = document.getElementById('btnCheckActiveSession');
+            const val = sel ? sel.value : 'pool';
+            if (!btn) return;
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Testing…';
+            toast('Testing session with TikTok authentication servers…');
+
+            let payload = {};
+            if (val === 'custom') {
+                const c = (document.getElementById('customCookieInput').value || '').trim();
+                if (!c) {
+                    toast('Please enter a cookie to test', 'error');
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                    return;
+                }
+                payload = { cookie: c };
+            } else if (val === 'pool') {
+                payload = { check_pool_single: true };
+            } else {
+                payload = { identifier: val };
+            }
+
+            try {
+                const res = await fetch('/api/sessions/validate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if (d.valid) {
+                    const u = d.user ? `@${d.user}` : 'active';
+                    toast(`✔ Session verified active! Account: ${u}`);
+                    updateSessionBadgeUI(true, `Active (${u})`);
+                } else {
+                    toast(`✖ Session check failed: ${d.msg || d.result || 'Expired'}`, 'error');
+                    updateSessionBadgeUI(false, 'Expired');
+                }
+                await loadSessions();
+            } catch(e) {
+                toast('Error testing session: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
+        }
+
+        async function verifySingleSession(identifier) {
+            toast(`Verifying session '${identifier}' with TikTok…`);
+            try {
+                const res = await fetch('/api/sessions/validate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ identifier })
+                });
+                const d = await res.json();
+                if (d.valid) {
+                    toast(`✔ Session '${identifier}' is active (@${d.user || 'user'})!`);
+                } else {
+                    toast(`✖ Session '${identifier}' failed: ${d.msg || 'Expired'}`, 'error');
+                }
+                await loadSessions();
+            } catch(e) {
+                toast('Error verifying session: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteSession(identifier) {
+            if (!confirm(`Are you sure you want to delete session '${identifier}'?`)) return;
+            try {
+                const res = await fetch('/api/sessions/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ identifier })
+                });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    toast(d.msg || 'Session deleted');
+                    await loadSessions();
+                } else {
+                    toast(d.msg || 'Failed to delete session', 'error');
+                }
+            } catch(e) {
+                toast('Error deleting session: ' + e.message, 'error');
+            }
+        }
+
+        function openAddSessionModal() {
+            document.getElementById('sessionCookieInput').value = '';
+            document.getElementById('sessionLabel').value = '';
+            document.getElementById('addSessionModal').classList.add('open');
+        }
+
+        async function submitNewSession() {
+            const cookie = document.getElementById('sessionCookieInput').value.trim();
+            const label = document.getElementById('sessionLabel').value.trim();
+            if (!cookie) return toast('Please enter a cookie string or sessionid', 'error');
+
+            const btn = document.getElementById('btnSaveSession');
+            btn.disabled = true;
+            btn.textContent = 'Verifying with TikTok…';
+
+            try {
+                const res = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({cookie, label})
+                });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    toast(d.msg || 'Session verified and saved!');
+                    closeModal('addSessionModal');
+                    await loadSessions();
+                } else {
+                    toast(d.msg || 'Session verification failed', 'error');
+                }
+            } catch (e) {
+                toast('Network error: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✓ Verify & Save';
+            }
+        }
+
+        async function checkAllSessions() {
+            toast('Validating stored sessions with TikTok servers…');
+            try {
+                const res = await fetch('/api/sessions/validate', {method: 'POST'});
+                const d = await res.json();
+                if (d.results && d.results.length > 0) {
+                    const validCount = d.results.filter(r => r.valid).length;
+                    toast(`${validCount}/${d.results.length} sessions verified active`);
+                    await loadSessions();
+                } else {
+                    toast('No sessions to check. Add a session first.');
+                }
+            } catch(e) {
+                toast('Error checking sessions: ' + e.message, 'error');
+            }
+        }
+
+        // ── LOOKUP ─────────────────────────────────────────────
+        async function lookupUser() {
+            const username = document.getElementById('username').value.trim().replace(/^@/, '');
+            if (!username) return toast('Enter a username', 'error');
+
+            document.getElementById('btnLookup').disabled = true;
+            document.getElementById('btnLookup').textContent = 'LOOKING UP…';
+
+            try {
+                const res = await fetch('/api/lookup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username})
+                });
+                const data = await res.json();
+
+                if (data.status === 'ok') {
+                    toast('Target resolved: ' + (data.name || username));
+                    document.getElementById('targetCard').classList.add('visible');
+                    document.getElementById('targetAvatar').textContent =
+                        (data.name || username).charAt(0).toUpperCase();
+                    document.getElementById('targetName').textContent = data.name || '—';
+                    document.getElementById('targetUsername').textContent = '@' + username;
+                    document.getElementById('targetId').textContent = 'ID: ' + (data.id || '—');
+                    document.getElementById('tFollowers').textContent = fmt(data.followers);
+                    document.getElementById('tFollowing').textContent = fmt(data.following);
+                    document.getElementById('tLikes').textContent = fmt(data.likes);
+                    document.getElementById('tCountry').textContent = data.country || '—';
+                    document.getElementById('tPrivate').textContent = data.private || '—';
+                    document.getElementById('tDate').textContent = data.date || '—';
+                    document.getElementById('tBio').textContent = data.bio || '';
+                } else {
+                    toast('Lookup failed: ' + (data.error || 'Unknown'), 'error');
+                }
+            } catch (e) {
+                toast('Network error: ' + e.message, 'error');
+            }
+
+            document.getElementById('btnLookup').disabled = false;
+            document.getElementById('btnLookup').textContent = 'LOOKUP';
+        }
+
+        // ── CHECK SESSION THEN START ───────────────────────────
+        async function checkSessionThenStart() {
+            const usernameInput = document.getElementById('username');
+            const targetUname = usernameInput ? usernameInput.value.trim().replace(/^@/, '') : '';
+            if (!targetUname) {
+                toast('Please enter and lookup a target username first!', 'error');
+                if (usernameInput) usernameInput.focus();
+                return;
+            }
+
+            const mode = document.getElementById('report_mode').value;
+            const btn = document.getElementById('btnVerifyAndStart');
+            const origHtml = btn ? btn.innerHTML : '';
+
+            if (mode === 'mobile') {
+                toast('📱 Mobile mode uses Android device emulation (Gorgon/Argus). Starting attack…');
+                return startReporting();
+            }
+
+            // Web mode: verify session first!
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Verifying Session with TikTok…';
+            }
+            toast('Validating TikTok session with passport servers…');
+
+            try {
+                const selectedSid = document.getElementById('session_select') ? document.getElementById('session_select').value : 'pool';
+                let payload = {};
+
+                if (selectedSid === 'custom') {
+                    const customCookie = (document.getElementById('customCookieInput').value || '').trim();
+                    if (!customCookie) {
+                        toast('Please enter your custom cookie or select an active session', 'error');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerHTML = origHtml;
+                        }
+                        return;
+                    }
+                    payload = { cookie: customCookie };
+                } else if (selectedSid === 'pool') {
+                    payload = { check_pool_single: true };
+                } else {
+                    payload = { identifier: selectedSid };
+                }
+
+                const res = await fetch('/api/sessions/validate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.valid) {
+                    const userLabel = data.user ? `@${data.user}` : (data.label || 'Active account');
+                    toast(`✅ TikTok Session Verified for ${userLabel}! Launching attack…`);
+                    if (btn) btn.innerHTML = `✔ Verified (${userLabel}) — Starting…`;
+
+                    // Start reporting with verified session
+                    await startReporting({
+                        session_identifier: (selectedSid === 'custom' || selectedSid === 'pool') ? '' : selectedSid,
+                        cookies: selectedSid === 'custom' ? (document.getElementById('customCookieInput').value || '').trim() : ''
+                    });
+
+                    setTimeout(() => {
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerHTML = origHtml;
+                        }
+                    }, 3000);
+                } else {
+                    const errMsg = data.msg || data.result || 'Session expired or rejected by TikTok';
+                    toast(`❌ Session verification failed: ${errMsg}`, 'error');
+                    alert(`⚠️ TikTok Session Verification Failed!\n\nReason: ${errMsg}\n\nPlease refresh your browser cookie or select a valid session before starting Web Mode.`);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = origHtml;
+                    }
+                    await loadSessions();
+                }
+            } catch (e) {
+                toast('Network error during session check: ' + e.message, 'error');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
+            }
+        }
+
+        // ── START ──────────────────────────────────────────────
+        async function startReporting(extraConfig = {}) {
+            const selectedSid = document.getElementById('session_select') ? document.getElementById('session_select').value : '';
+            const webDev = document.getElementById('web_device') ? document.getElementById('web_device').value : 'random';
+            const selectedReasons = getSelectedReasons();
+            if (!selectedReasons.length) {
+                toast('Select at least one report reason before starting', 'error');
+                return;
+            }
+            const config = {
+                mode: document.getElementById('report_mode').value,
+                reason: selectedReasons[0],
+                reasons: selectedReasons,
+                session_identifier: (selectedSid && selectedSid !== 'pool' && selectedSid !== 'custom') ? selectedSid : '',
+                web_device: webDev,
+                delay: parseFloat(document.getElementById('delay').value) || 1.0,
+                use_proxy: document.getElementById('use_proxy').checked,
+                proxy_file: document.getElementById('proxy_file').value || 'proxies.txt',
+                ...extraConfig
+            };
+
+            if (selectedSid === 'custom' && !config.cookies) {
+                config.cookies = (document.getElementById('customCookieInput').value || '').trim();
+            }
+
+            try {
+                const res = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    toast('Reporting started');
+                } else {
+                    toast(data.msg || 'Failed to start', 'error');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+            }
+        }
+
+        // ── STOP ───────────────────────────────────────────────
+        async function stopReporting() {
+            try {
+                await fetch('/api/stop', {method: 'POST'});
+                toast('Stopped');
+            } catch (e) {
+                toast('Error stopping', 'error');
+            }
+        }
+
+        let currentLogFileName = null;
+        let lastResponseData = null;
+
+        // ── LOG HELPERS ────────────────────────────────────────
+        function formatJsonOrText(str) {
+            if (!str) return '(empty response body)';
+            try {
+                const parsed = JSON.parse(str);
+                return escHtml(JSON.stringify(parsed, null, 2));
+            } catch (e) {
+                return escHtml(str);
+            }
+        }
+
+        function copyText(btn, text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.textContent;
+                btn.textContent = '✔ Copied!';
+                setTimeout(() => { btn.textContent = orig; }, 2000);
+            }).catch(() => {
+                toast('Copy failed', 'error');
+            });
+        }
+
+        function toggleRowDetail(num) {
+            const card = document.getElementById('log-card-' + num);
+            if (!card) return;
+            const block = card.querySelector('.log-response-block');
+            if (!block) return;
+            const hidden = block.style.display === 'none';
+            block.style.display = hidden ? '' : 'none';
+        }
+
+        function addLogRow(r) {
+            const container = document.getElementById('logCards');
+            memoryRequests[r.num] = r;
+
+            const statusIcon = r.success ? '✔' : '✗';
+            const statusStyle = r.success ? 'color:var(--green)' : 'color:var(--red)';
+            const scoreCls = scoreColor(r.score);
+            const latCls = latColor(r.latency);
+            const fullRespContent = r.response_full || r.snippet || '(empty response body)';
+
+            const card = document.createElement('div');
+            card.className = 'log-card ' + (r.success ? 'row-ok' : 'row-fail');
+            card.id = 'log-card-' + r.num;
+
+            card.innerHTML = `
+                <div class="log-card-header">
+                    <div class="meta">
+                        <span class="chip ok">${statusIcon}</span>
+                        <span class="chip score ${scoreCls}">${r.score.toFixed(1)}/10</span>
+                        <span class="chip lat ${latCls}">${r.latency.toFixed(0)}ms</span>
+                        <span class="chip http">HTTP ${r.http_status}</span>
+                        <span class="chip api">API ${r.server_code}</span>
+                        <span class="chip device">${r.brand || ''} ${r.device || ''}</span>
+                        <span class="chip proxy" title="${escHtml(r.proxy || '—')}">${truncate(r.proxy, 18)}</span>
+                        <span class="chip time">${escHtml(r.time)}</span>
+                    </div>
+                    <div class="log-card-actions">
+                        <button class="btn-xs btn-cyan" onclick="event.stopPropagation(); toggleRowDetail(${r.num});" title="Show/hide response body">
+                            <span id="detail-btn-${r.num}">▾ Response</span>
+                        </button>
+                        <button class="btn-xs btn-dim" onclick="event.stopPropagation(); openResponseModal(memoryRequests[${r.num}]);" title="Pop out full inspector">↗</button>
+                    </div>
+                </div>
+                <div class="log-card-details">
+                    <div>Attempt <strong>#${r.num}</strong></div>
+                    <div>Target <strong>@${escHtml(r.target || '—')}</strong></div>
+                    <div>Device ID <strong>${escHtml(r.device_id || '—')}</strong></div>
+                    <div>Install ID <strong>${escHtml(r.iid || '—')}</strong></div>
+                    <div>OpenUDID <strong>${escHtml(r.openudid || '—')}</strong></div>
+                    <div>CDID <strong>${escHtml(r.cdid || '—')}</strong></div>
+                    <div class="wide">User-Agent <strong>${escHtml(r.ua_short || '—')}</strong></div>
+                    <div>Reason <strong>${escHtml(r.vector || r.reason || '—')}</strong></div>
+                </div>
+                <div class="log-response-block">
+                    <div class="resp-title">
+                        <span>Full Response Body — Destination Server</span>
+                        <span class="bytes">${fullRespContent.length} bytes</span>
+                    </div>
+                    <pre class="resp-full-pre">${formatJsonOrText(fullRespContent)}</pre>
+                </div>
+            `;
+
+            // Newest first
+            if (container.firstChild) {
+                container.insertBefore(card, container.firstChild);
+            } else {
+                container.appendChild(card);
+            }
+
+            // Limit to 100 cards
+            while (container.children.length > 100) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function clearLogTable() {
+            document.getElementById('logCards').innerHTML = '';
+            toast('View cleared (saved logs intact)');
+        }
+
+        function copyModalResponse() {
+            const content = document.getElementById('respModal').dataset.copyContent || '';
+            copyText(document.getElementById('btnModalCopy'), content);
+        }
+
+        function openResponseModal(r) {
+            if (!r) return;
+            document.getElementById('modalTitle').textContent = `⚡ Attack #${r.num} Response Details (${r.time})`;
+            document.getElementById('modalMetaGrid').innerHTML = `
+                <div><span class="dk">Target:</span> <span class="dv">@${escHtml(r.target || '—')}</span></div>
+                <div><span class="dk">HTTP Status:</span> <span class="dv" style="color:var(--orange)">${r.http_status}</span></div>
+                <div><span class="dk">API Code:</span> <span class="dv" style="color:var(--orange)">${r.server_code}</span></div>
+                <div><span class="dk">Latency:</span> <span class="dv">${r.latency} ms</span></div>
+                <div><span class="dk">Device:</span> <span class="dv" style="color:var(--cyan)">${r.brand || ''} ${r.device || ''}</span></div>
+                <div><span class="dk">Device ID:</span> <span class="dv">${escHtml(r.device_id || '—')}</span></div>
+                <div><span class="dk">Proxy:</span> <span class="dv" style="color:var(--purple)">${escHtml(r.proxy || '—')}</span></div>
+                <div><span class="dk">Result:</span> <span class="dv" style="color:${r.success ? 'var(--green)' : 'var(--red)'}">${r.success ? 'ACCEPTED' : 'REJECTED'}</span></div>
+            `;
+            const bodyStr = r.response_full || r.snippet || '(empty response body)';
+            document.getElementById('modalRespBody').innerHTML = formatJsonOrText(bodyStr);
+            document.getElementById('respModal').dataset.copyContent = bodyStr;
+            document.getElementById('respModal').classList.add('open');
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.remove('open');
+        }
+
+        // Close modal when clicking outside box
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                e.target.classList.remove('open');
+            }
+        });
+
+        async function openLogsModal() {
+            const listEl = document.getElementById('logsFileList');
+            listEl.innerHTML = '<div style="text-align:center; color:var(--dim); padding:16px;">Loading attack logs...</div>';
+            document.getElementById('logsModal').classList.add('open');
+
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                if (data.status === 'ok' && data.logs && data.logs.length > 0) {
+                    listEl.innerHTML = '';
+                    data.logs.forEach(l => {
+                        const item = document.createElement('div');
+                        item.className = 'session-item';
+                        item.innerHTML = `
+                            <div class="s-left">
+                                <div class="session-dot" style="background:${l.is_current ? 'var(--green)' : 'var(--cyan)'}"></div>
+                                <div>
+                                    <div class="session-name">${escHtml(l.filename)}</div>
+                                    <div class="session-sid">Created: ${l.created} · Size: ${l.size_kb} KB ${l.is_current ? '<b style="color:var(--green)">[CURRENT ACTIVE]</b>' : ''}</div>
+                                </div>
+                            </div>
+                            <a href="/api/logs/download/${encodeURIComponent(l.filename)}" class="btn-xs btn-cyan" style="text-decoration:none; display:inline-flex; align-items:center;" download>📥 Download</a>
+                        `;
+                        listEl.appendChild(item);
+                    });
+                } else {
+                    listEl.innerHTML = '<div style="text-align:center; color:var(--dim); padding:20px;">No attack logs found yet. Start an attack session to generate logs.</div>';
+                }
+            } catch (e) {
+                listEl.innerHTML = `<div style="text-align:center; color:var(--red); padding:16px;">Error loading logs: ${e.message}</div>`;
+            }
+        }
+
+        function triggerDirectDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            if (filename) a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        async function downloadCurrentLog() {
+            let targetFile = currentLogFileName;
+            if (!targetFile) {
+                try {
+                    const res = await fetch('/api/logs');
+                    const data = await res.json();
+                    if (data.status === 'ok') {
+                        if (data.current_log) {
+                            targetFile = data.current_log;
+                        } else if (data.logs && data.logs.length > 0) {
+                            targetFile = data.logs[0].filename;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch logs:', e);
+                }
+            }
+
+            if (targetFile) {
+                currentLogFileName = targetFile;
+                toast(`Downloading ${targetFile}...`);
+                triggerDirectDownload(`/api/logs/download/${encodeURIComponent(targetFile)}`, targetFile);
+            } else {
+                openLogsModal();
+                toast('No attack log active yet. Select a saved log to download.', 'error');
+            }
+        }
+
+        // ── SOCKET EVENTS ──────────────────────────────────────
+
+        socket.on('status_change', (data) => {
+            isRunning = data.running;
+            const badge = document.getElementById('statusBadge');
+            const text = document.getElementById('statusText');
+            const logPill = document.getElementById('activeLogPill');
+            const logNameText = document.getElementById('activeLogName');
+
+            if (isRunning) {
+                badge.className = 'status-badge running';
+                text.textContent = 'RUNNING';
+                document.getElementById('btnStart').disabled = true;
+                document.getElementById('btnStop').disabled = false;
+                document.getElementById('pDelay').textContent =
+                    document.getElementById('delay').value + 's';
+
+                if (data.log_file) {
+                    currentLogFileName = data.log_file;
+                    logNameText.textContent = data.log_file;
+                    logPill.style.display = 'inline-flex';
+                }
+
+                // Clear log on fresh run
+                document.getElementById('logCards').innerHTML = '';
+                startTime = Date.now();
+                elapsedInterval = setInterval(updateElapsed, 1000);
+            } else {
+                badge.className = 'status-badge stopped';
+                text.textContent = 'STOPPED';
+                document.getElementById('btnStart').disabled = false;
+                document.getElementById('btnStop').disabled = true;
+                if (elapsedInterval) clearInterval(elapsedInterval);
+                if (logPill) {
+                    logPill.style.borderColor = 'rgba(255,255,255,0.1)';
+                    logPill.style.color = 'var(--dim)';
+                }
+            }
+        });
+
+        socket.on('stats_update', (d) => {
+            document.getElementById('sAccepted').textContent = fmt(d.accepted);
+            document.getElementById('sRejected').textContent = fmt(d.rejected);
+            document.getElementById('sTotal').textContent = fmt(d.total);
+            updateProgress(d.rate);
+            document.getElementById('pElapsed').textContent = d.elapsed;
+            document.getElementById('pCaptcha').textContent = d.captcha_hits;
+            document.getElementById('pCaptcha').style.color =
+                d.captcha_hits > 0 ? 'var(--red)' : 'var(--dim)';
+            document.getElementById('pBlocked').textContent = d.blocked_devices;
+            document.getElementById('progressLabel').textContent =
+                d.accepted + ' / ' + d.total;
+            const pct = d.total > 0 ? (d.accepted / d.total * 100) : 0;
+            document.getElementById('progressBar').style.width = pct + '%';
+
+            if (d.proxy_pool) {
+                proxyPoolData = d.proxy_pool;
+                renderProxyRows(d.proxy_stats);
+            } else if (d.proxy_stats) {
+                document.getElementById('proxyPoolStats').textContent = d.proxy_stats;
+            }
+        });
+
+        function renderLastRequest(r) {
+            if (!r) return;
+            lastResponseData = r;
+            const lr = document.getElementById('lastReqContent');
+            if (!lr) return;
+            const statusBadge = r.success
+                ? '<span class="badge-sent">✔ SENT</span>'
+                : '<span class="badge-fail">✗ FAIL</span>';
+            const scoreCls = scoreColor(r.score);
+            const latCls = latColor(r.latency);
+
+            lr.innerHTML = `
+                <div class="info-row"><span class="k">Result<small>Was it accepted?</small></span><span class="v">${statusBadge}</span></div>
+                <div class="info-row"><span class="k">Score<small>Confidence 0–10</small></span><span class="v ${scoreCls}">${r.score.toFixed(1)}/10</span></div>
+                <div class="info-row"><span class="k">Latency<small>Server response time</small></span><span class="v ${latCls}">${r.latency.toFixed(0)} ms</span></div>
+                <div class="info-row"><span class="k">HTTP Status<small>Network-level code</small></span><span class="v" style="color:var(--orange)">${r.http_status}</span></div>
+                <div class="info-row"><span class="k">API Code<small>TikTok internal code</small></span><span class="v" style="color:var(--orange)">${r.server_code}</span></div>
+                <div class="info-row"><span class="k">Device<small>Emulated model</small></span><span class="v" style="color:var(--cyan)">${escHtml(r.brand || '—')} ${escHtml(r.device || '')}</span></div>
+                <div class="info-row"><span class="k">Device ID<small>Spoofed hardware ID</small></span><span class="v" style="color:var(--dim);font-size:0.7rem">${escHtml(r.device_id || '—')}</span></div>
+                <div class="info-row"><span class="k">Proxy<small>Exit endpoint used</small></span><span class="v" style="color:var(--purple)">${escHtml(r.proxy || '—')}</span></div>
+                <div class="info-row"><span class="k">Time<small>Request timestamp</small></span><span class="v" style="color:var(--dim)">${r.time}</span></div>
+                <div style="margin-top:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <span style="font-size:0.68rem; color:var(--dim); font-family:var(--font-mono); text-transform:uppercase;">FULL RESPONSE BODY</span>
+                        <button class="btn-xs btn-cyan" onclick="openResponseModal(lastResponseData)">Inspect ↗</button>
+                    </div>
+                    <pre class="resp-full-pre" style="max-height:130px;">${formatJsonOrText(r.response_full || r.snippet)}</pre>
+                </div>
+            `;
+        }
+
+        socket.on('new_request', (r) => {
+            renderLastRequest(r);
+            addLogRow(r);
+        });
+
+        // Store requests in memory for inspector
+        const memoryRequests = {};
+
+        function escHtml(s) {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function truncate(s, n) {
+            if (!s) return '—';
+            return s.length > n ? s.substring(0, n) + '…' : s;
+        }
+
+        function updateElapsed() {
+            if (!startTime) return;
+            const sec = Math.floor((Date.now() - startTime) / 1000);
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            document.getElementById('pElapsed').textContent = h + ':' + m + ':' + s;
+        }
+
+        // Allow Enter key to trigger lookup
+        document.getElementById('username').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') lookupUser();
+        });
+
+        document.querySelectorAll('.reason-check').forEach(c => c.addEventListener('change', updateReasonCount));
+        updateReasonCount();
+
+        // Load initial state on page load
+        (async function loadState() {
+            // Load Redis sessions
+            await loadSessions();
+            // Populate the emulated device list from the real profile registry
+            await loadWebDevices();
+            // Load the configured proxy pool
+            await loadProxies();
+
+            try {
+                const res = await fetch('/api/state');
+                const d = await res.json();
+                const savedReasonKeys = d.config && Array.isArray(d.config.reason_keys) ? d.config.reason_keys : [];
+                if (savedReasonKeys.length) {
+                    document.querySelectorAll('.reason-check').forEach(c => {
+                        c.checked = savedReasonKeys.includes(c.value);
+                    });
+                    updateReasonCount();
+                }
+                if (d.running) {
+                    socket.emit('status_change', {running: true, log_file: d.current_log});
+                }
+                if (d.current_log) {
+                    currentLogFileName = d.current_log;
+                    document.getElementById('activeLogName').textContent = d.current_log;
+                    document.getElementById('activeLogPill').style.display = 'inline-flex';
+                }
+                if (d.target && d.target.id) {
+                    document.getElementById('username').value = d.target.username || '';
+                    document.getElementById('targetCard').classList.add('visible');
+                    document.getElementById('targetAvatar').textContent =
+                        (d.target.name || '?').charAt(0).toUpperCase();
+                    document.getElementById('targetName').textContent = d.target.name || '—';
+                    document.getElementById('targetUsername').textContent = '@' + (d.target.username || '');
+                    document.getElementById('targetId').textContent = 'ID: ' + d.target.id;
+                    document.getElementById('tFollowers').textContent = fmt(d.target.followers);
+                    document.getElementById('tFollowing').textContent = fmt(d.target.following);
+                    document.getElementById('tLikes').textContent = fmt(d.target.likes);
+                    document.getElementById('tCountry').textContent = d.target.country || '—';
+                    document.getElementById('tPrivate').textContent = d.target.private || '—';
+                    document.getElementById('tDate').textContent = d.target.date || '—';
+                    document.getElementById('tBio').textContent = d.target.bio || '';
+                }
+                if (d.request_log) {
+                    d.request_log.reverse().forEach(r => addLogRow(r));
+                }
+                if (d.last_request && d.last_request.num) {
+                    renderLastRequest(d.last_request);
+                }
+                if (d.proxy_pool) {
+                    proxyPoolData = d.proxy_pool;
+                    renderProxyRows(d.proxy_stats);
+                }
+            } catch (e) {}
+        })();
+
+        // ══════════════════════════════════════════════════════
+        // 3D SCARY HACKING BANNER CONTROLLER
+        // ══════════════════════════════════════════════════════
+        (function initCyber3DBanner() {
+            const wrapper = document.getElementById('banner3dWrapper');
+            const banner = document.getElementById('banner3d');
+            const canvas = document.getElementById('bannerCanvas3D');
+            const matrixEl = document.getElementById('matrixStream');
+            if (!wrapper || !banner || !canvas) return;
+
+            let mouseX = 0, mouseY = 0;
+            let targetRotX = 0, targetRotY = 0;
+            let curRotX = 0, curRotY = 0;
+
+            // Interactive 3D Card Tilt
+            wrapper.addEventListener('mousemove', (e) => {
+                const rect = wrapper.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) - 0.5;
+                const y = ((e.clientY - rect.top) / rect.height) - 0.5;
+                targetRotY = x * 16;
+                targetRotX = -y * 14;
+                mouseX = x * 2.5;
+                mouseY = -y * 2.5;
+            });
+
+            wrapper.addEventListener('mouseleave', () => {
+                targetRotX = 0;
+                targetRotY = 0;
+                mouseX = 0;
+                mouseY = 0;
+            });
+
+            // Live Hex Matrix Stream
+            if (matrixEl) {
+                const hexCodes = [
+                    '0x7F454C46', '0xDEADBEEF', '0xVOID_C2', '0xROTATING_IP',
+                    '0xSHADOW_RSA', '0xOVERRIDE', '0xARGUS_LETHAL', '0xSWARM_ATTACK',
+                    '0xPROXY_MESH', '0xSESSION_VAULT', '0xTOKEN_UCP', '0x00FF88'
+                ];
+                setInterval(() => {
+                    const h1 = hexCodes[Math.floor(Math.random() * hexCodes.length)];
+                    const h2 = hexCodes[Math.floor(Math.random() * hexCodes.length)];
+                    const h3 = hexCodes[Math.floor(Math.random() * hexCodes.length)];
+                    matrixEl.innerHTML = `${h1} ${h2}<br>${h3} 0x${Math.floor(Math.random()*0xFFFFFF).toString(16).toUpperCase()}<br>[896 SESSIONS ARMED]`;
+                }, 300);
+            }
+
+            // Fallback 2D Matrix Canvas if Three.js not loaded
+            if (typeof THREE === 'undefined') {
+                const ctx = canvas.getContext('2d');
+                function drawFallback() {
+                    canvas.width = canvas.clientWidth;
+                    canvas.height = canvas.clientHeight;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = 'rgba(255, 0, 55, 0.2)';
+                    ctx.beginPath();
+                    for (let x = 0; x < canvas.width; x += 40) {
+                        ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+                    }
+                    ctx.stroke();
+                }
+                drawFallback();
+                return;
+            }
+
+            // Three.js 3D WebGL Scene
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(40, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+            camera.position.z = 13;
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Main 3D Skull Group
+            const skullGroup = new THREE.Group();
+            scene.add(skullGroup);
+            // Position slightly toward right side
+            skullGroup.position.set(2.8, 0.1, 0);
+
+            // 1. Procedural Deformed Cranium
+            const craniumGeo = new THREE.IcosahedronGeometry(2.3, 2);
+            const pos = craniumGeo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);
+                // Eye cavity depression
+                if (z > 1.1 && y > -0.3 && y < 0.9 && (Math.abs(x) > 0.4 && Math.abs(x) < 1.6)) {
+                    z *= 0.55;
+                }
+                // Narrow cheekbones & chin
+                if (y < -0.4 && z > 0) {
+                    x *= 0.8;
+                }
+                pos.setXYZ(i, x, y, z);
+            }
+            craniumGeo.computeVertexNormals();
+
+            const skullWireMat = new THREE.MeshBasicMaterial({
+                color: 0xff0044,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.65
+            });
+            const craniumMesh = new THREE.Mesh(craniumGeo, skullWireMat);
+            skullGroup.add(craniumMesh);
+
+            // 2. Jaw Bone
+            const jawGeo = new THREE.BoxGeometry(1.6, 1.1, 1.6, 3, 2, 3);
+            const jawMat = new THREE.MeshBasicMaterial({
+                color: 0xcc0033,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            const jawMesh = new THREE.Mesh(jawGeo, jawMat);
+            jawMesh.position.set(0, -1.5, 0.45);
+            skullGroup.add(jawMesh);
+
+            // 3. Piercing Glowing Neon Eyes
+            const eyeGeo = new THREE.SphereGeometry(0.22, 12, 12);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0033 });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.7, 0.35, 1.6);
+            const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+            rightEye.position.set(0.7, 0.35, 1.6);
+            skullGroup.add(leftEye);
+            skullGroup.add(rightEye);
+
+            // 4. Cybernetic Horns
+            const hornGeo = new THREE.ConeGeometry(0.4, 1.9, 6);
+            const hornMat = new THREE.MeshBasicMaterial({ color: 0xff0044, wireframe: true });
+            const leftHorn = new THREE.Mesh(hornGeo, hornMat);
+            leftHorn.position.set(-1.6, 1.6, 0.2);
+            leftHorn.rotation.z = 0.5;
+            leftHorn.rotation.x = -0.3;
+            const rightHorn = new THREE.Mesh(hornGeo, hornMat);
+            rightHorn.position.set(1.6, 1.6, 0.2);
+            rightHorn.rotation.z = -0.5;
+            rightHorn.rotation.x = -0.3;
+            skullGroup.add(leftHorn);
+            skullGroup.add(rightHorn);
+
+            // 5. Floating Cyber Orbit Rings
+            const ringGeo = new THREE.TorusGeometry(3.6, 0.04, 8, 48);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.4 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2.3;
+            skullGroup.add(ring);
+
+            const ring2Geo = new THREE.TorusGeometry(3.9, 0.03, 8, 48);
+            const ring2Mat = new THREE.MeshBasicMaterial({ color: 0xff0055, transparent: true, opacity: 0.35 });
+            const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+            ring2.rotation.x = -Math.PI / 2.6;
+            skullGroup.add(ring2);
+
+            // 6. 3D Floating Particle Swarm
+            const particleCount = 280;
+            const particleGeo = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                particlePositions[i] = (Math.random() - 0.5) * 32;
+                particlePositions[i + 1] = (Math.random() - 0.5) * 16;
+                particlePositions[i + 2] = (Math.random() - 0.5) * 14;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            const particleMat = new THREE.PointsMaterial({
+                color: 0xff0044,
+                size: 0.14,
+                transparent: true,
+                opacity: 0.65
+            });
+            const particles = new THREE.Points(particleGeo, particleMat);
+            scene.add(particles);
+
+            // Animation Loop
+            let clock = new THREE.Clock();
+            function render3D() {
+                requestAnimationFrame(render3D);
+                const t = clock.getElapsedTime();
+
+                // 3D Card Parallax Tilt
+                curRotX += (targetRotX - curRotX) * 0.1;
+                curRotY += (targetRotY - curRotY) * 0.1;
+                banner.style.transform = `rotateX(${curRotX.toFixed(2)}deg) rotateY(${curRotY.toFixed(2)}deg)`;
+
+                // Head tracks cursor with sinister presence
+                const targetSkullY = mouseX * 0.65;
+                const targetSkullX = -mouseY * 0.45;
+                skullGroup.rotation.y += (targetSkullY - skullGroup.rotation.y) * 0.06;
+                skullGroup.rotation.x += (targetSkullX - skullGroup.rotation.x) * 0.06;
+
+                // Breathing hover motion
+                skullGroup.position.y = 0.1 + Math.sin(t * 1.8) * 0.3;
+                ring.rotation.z = t * 0.35;
+                ring2.rotation.z = -t * 0.28;
+
+                // Menacing eye flicker
+                const eyeGlow = 0.6 + Math.sin(t * 6) * 0.4;
+                eyeMat.color.setRGB(1.0, 0.0, eyeGlow * 0.25);
+
+                // Particles drifting
+                particles.rotation.y = t * 0.035;
+
+                renderer.render(scene, camera);
+            }
+            render3D();
+
+            // Resize Observer for 3D Canvas
+            const resizeObserver = new ResizeObserver(() => {
+                if (!canvas.clientWidth || !canvas.clientHeight) return;
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            });
+            resizeObserver.observe(wrapper);
+        })();
+    </script>
+</body>
+</html>

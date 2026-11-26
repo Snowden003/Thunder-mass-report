@@ -1,0 +1,58 @@
+# THUNDER Reporter - Configuration
+# Theme, defaults, and behavior settings
+
+# ── UI Theme ────────────────────────────────────────────────────────────────
+theme:
+  primary: "#ff0040"      # neon blood red
+  secondary: "#a04040"    # deep crimson
+  success: "#00ff00"      # electric green
+  info: "#00aaff"         # electric blue
+  warning: "#f5a623"      # amber
+  error: "#ff0040"        # blood red
+  muted: "#a5a5a5"        # dim grey
+  silver: "#fafafa"       # light grey
+  surface: "#121212"      # void background
+  border: "#4a4a4a"       # slate
+  violet: "#bf5af2"       # void violet
+
+# ── UI Display ──────────────────────────────────────────────────────────────
+ui:
+  width: 80
+  show_logo: true
+  show_timestamps: true
+  refresh_per_second: 4
+
+# ── Defaults ────────────────────────────────────────────────────────────────
+defaults:
+  request_delay: 5.0
+  delay_min: 5.0
+  delay_max: 17.0
+  is_random_delay: true
+  workers: 2
+  max_retries: 2
+  proxy_validation_timeout: 12
+  request_timeout: 15
+  max_failures: 3
+  min_healthy_proxies: 1
+
+# ── AI Provider ─────────────────────────────────────────────────────────────
+ai:
+  provider: "tooken"          # tooken, gemini, or auto
+  model: "claude-haiku-5-5"   # configured AI model
+  fallback_models:
+    - "gpt-5.5"
+    - "claude-haiku-5-5"
+    - "gemini-4-argon"
+    - "gemini-3.8-flash"
+
+# ── Proxy ───────────────────────────────────────────────────────────────────
+proxy:
+  file: "data/proxies.txt"
+  validate_on_start: true
+  health_check_url: "https://httpbin.org/ip"
+  health_check_timeout: 15.0
+
+# ── Session ─────────────────────────────────────────────────────────────────
+session:
+  file: "data/saved_sessions.json"
+  block_duration: 600          # 10 minutes cooldown

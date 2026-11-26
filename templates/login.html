@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THUNDER — Secure Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #080b14;
+      --bg-card:    rgba(13,17,32,.96);
+      --border:     rgba(99,102,241,.18);
+      --border-hi:  rgba(99,102,241,.5);
+      --accent:     #6366f1;
+      --accent-2:   #818cf8;
+      --accent-glow:rgba(99,102,241,.4);
+      --accent-dim: rgba(99,102,241,.12);
+      --violet:     #a78bfa;
+      --violet-glow:rgba(167,139,250,.35);
+      --danger:     #f43f5e;
+      --danger-dim: rgba(244,63,94,.12);
+      --text:       #e2e8f0;
+      --muted:      #64748b;
+      --mono:  'JetBrains Mono', monospace;
+      --sans:  'Space Grotesk', 'Inter', sans-serif;
+      --inter: 'Inter', sans-serif;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      min-height:100vh;
+      display:grid; place-items:center;
+      padding:20px;
+      background:var(--bg);
+      font-family:var(--inter);
+      color:var(--text);
+      overflow:hidden;
+      position:relative;
+    }
+
+    /* ── BG ── */
+    .bg-orbs { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    .orb {
+      position:absolute; border-radius:50%;
+      filter:blur(80px); opacity:.18;
+    }
+    .orb-1 { width:600px; height:600px; background:var(--accent); top:-200px; left:-150px; animation:orbFloat 12s ease-in-out infinite; }
+    .orb-2 { width:500px; height:500px; background:var(--violet); bottom:-200px; right:-100px; animation:orbFloat 10s ease-in-out infinite reverse; }
+    .orb-3 { width:300px; height:300px; background:#22d3ee; top:40%; left:40%; animation:orbFloat 8s ease-in-out infinite 2s; opacity:.1; }
+    @keyframes orbFloat { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(30px,-40px) scale(1.05)} }
+
+    .grid-bg {
+      position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.04;
+      background-image:
+        linear-gradient(rgba(99,102,241,.6) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,.6) 1px, transparent 1px);
+      background-size:48px 48px;
+    }
+
+    /* ── CARD ── */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(28px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+    .login-wrap {
+      position:relative; z-index:10; width:100%; max-width:440px;
+      animation:fadeUp .7s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .login-card {
+      background:linear-gradient(145deg, rgba(13,17,32,.97), rgba(8,11,20,.98));
+      border:1px solid var(--border);
+      border-radius:28px;
+      padding:48px 40px 40px;
+      backdrop-filter:blur(28px) saturate(1.6);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.04) inset,
+        0 32px 80px rgba(0,0,0,.65),
+        0 0 80px rgba(99,102,241,.08);
+      position:relative; overflow:hidden;
+    }
+    .login-card::before {
+      content:''; position:absolute; top:0; left:10%; right:10%; height:1px;
+      background:linear-gradient(90deg, transparent, var(--accent), var(--violet), transparent);
+      border-radius:999px;
+    }
+    .login-card::after {
+      content:''; position:absolute; top:0; left:0; right:0; bottom:0; border-radius:inherit;
+      background:radial-gradient(ellipse 60% 40% at 50% 0%, rgba(99,102,241,.06), transparent 70%);
+      pointer-events:none;
+    }
+
+    /* ── LOGO ── */
+    .logo-section { text-align:center; margin-bottom:40px; position:relative; z-index:1; }
+    .logo-icon {
+      width:72px; height:72px; margin:0 auto 18px;
+      background:linear-gradient(135deg, var(--accent-dim), rgba(167,139,250,.12));
+      border:1px solid var(--border-hi);
+      border-radius:20px;
+      display:grid; place-items:center;
+      font-size:32px;
+      position:relative;
+      animation:iconPulse 3.5s ease-in-out infinite;
+    }
+    .logo-icon::after {
+      content:''; position:absolute; inset:-6px; border-radius:26px;
+      border:1px solid rgba(99,102,241,.18);
+      animation:ringRotate 10s linear infinite;
+    }
+    @keyframes iconPulse { 0%,100%{box-shadow:0 0 32px var(--accent-glow),0 0 64px rgba(99,102,241,.12)} 50%{box-shadow:0 0 48px rgba(99,102,241,.55),0 0 80px rgba(99,102,241,.18)} }
+    @keyframes ringRotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+    .logo-title {
+      font-family:var(--sans); font-size:2rem; font-weight:800;
+      letter-spacing:4px; text-transform:uppercase;
+      background:linear-gradient(135deg, #c4b5fd, var(--accent-2), var(--accent));
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+      margin-bottom:8px;
+    }
+    .logo-sub { font-family:var(--mono); font-size:.62rem; color:var(--muted); letter-spacing:3px; text-transform:uppercase; }
+
+    /* ── BOOT ── */
+    .boot-seq {
+      font-family:var(--mono); font-size:.64rem; color:var(--muted);
+      line-height:1.9; margin-bottom:32px; min-height:118px; overflow:hidden;
+      position:relative; z-index:1;
+    }
+    .boot-line { opacity:0; transform:translateX(-16px); animation:bootLine .36s ease forwards; }
+    @keyframes bootLine { to{opacity:1;transform:translateX(0)} }
+    .boot-line.ok  { color:#10b981; }
+    .boot-line.err { color:var(--danger); }
+    .boot-line.warn{ color:#f59e0b; }
+
+    /* ── FORM ── */
+    .form-wrap { position:relative; z-index:1; }
+    .input-group { position:relative; margin-bottom:16px; }
+    .input-icon {
+      position:absolute; left:15px; top:50%; transform:translateY(-50%);
+      font-size:15px; opacity:.45; pointer-events:none; transition:opacity .25s;
+    }
+    .input-group:focus-within .input-icon { opacity:.8; }
+    input[type="password"] {
+      width:100%; padding:14px 14px 14px 46px;
+      background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.08);
+      border-radius:14px; color:var(--text);
+      font-family:var(--mono); font-size:.92rem; outline:none;
+      transition:all .28s cubic-bezier(.4,0,.2,1);
+      box-shadow:inset 0 2px 8px rgba(0,0,0,.28);
+    }
+    input[type="password"]:focus {
+      border-color:rgba(99,102,241,.55);
+      box-shadow:0 0 0 3px rgba(99,102,241,.14), 0 0 28px rgba(99,102,241,.18), inset 0 2px 8px rgba(0,0,0,.28);
+      background:rgba(13,17,32,.7);
+    }
+    input[type="password"]::placeholder { color:var(--muted); }
+
+    button[type="submit"] {
+      width:100%; padding:15px;
+      background:linear-gradient(135deg, var(--accent), var(--violet));
+      border:none; border-radius:14px;
+      color:#fff; font-family:var(--sans); font-size:.88rem;
+      font-weight:700; letter-spacing:2px; text-transform:uppercase;
+      cursor:pointer; position:relative; overflow:hidden;
+      transition:all .28s cubic-bezier(.4,0,.2,1);
+      box-shadow:0 4px 24px var(--accent-glow);
+    }
+    button[type="submit"]::before {
+      content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+      transition:left .55s ease;
+    }
+    button[type="submit"]:hover::before { left:100%; }
+    button[type="submit"]:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(99,102,241,.55); }
+    button[type="submit"]:active { transform:translateY(0); }
+
+    .error-msg {
+      margin-top:16px; padding:13px 16px;
+      background:var(--danger-dim); border:1px solid rgba(244,63,94,.3);
+      border-radius:12px; color:var(--danger); font-size:.8rem;
+      text-align:center; animation:shake .38s ease;
+      box-shadow:0 0 20px rgba(244,63,94,.12);
+    }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+
+    .footer-info {
+      text-align:center; margin-top:28px;
+      font-family:var(--mono); font-size:.58rem; color:var(--muted); letter-spacing:2px;
+      position:relative; z-index:1;
+    }
+    .footer-info .dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:#10b981; margin:0 6px; vertical-align:middle; box-shadow:0 0 6px rgba(16,185,129,.6); }
+
+    @media (max-width:480px) {
+      .login-card { padding:36px 24px 32px; }
+      .logo-title { font-size:1.5rem; letter-spacing:2px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="grid-bg"></div>
+
+  <div class="login-wrap" id="loginWrap">
+    <div class="login-card">
+
+      <div class="boot-seq" id="bootSeq"></div>
+
+      <div class="logo-section">
+        <div class="logo-icon">⚡</div>
+        <h1 class="logo-title">THUNDER</h1>
+        <p class="logo-sub">Secure Access Terminal</p>
+      </div>
+
+      <div class="form-wrap">
+        <form id="loginForm" method="post" action="/login">
+          <div class="input-group">
+            <span class="input-icon">🔒</span>
+            <input type="password" name="password" id="passwordInput"
+              placeholder="Enter master password"
+              autofocus autocomplete="current-password" required>
+          </div>
+          <button type="submit">Authenticate</button>
+          <div class="error-msg" id="errorMsg"
+            {% if not error %}style="display:none;"{% endif %}>
+            {% if error %}{{ error }}{% endif %}
+          </div>
+        </form>
+      </div>
+
+      <div class="footer-info">
+        <span class="dot"></span>
+        ENCRYPTED CONNECTION · OBSIDIAN BUILD v2.1
+        <span class="dot"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const bootLines = [
+      { text: '[OK] Initializing secure channel...', delay: 80,  cls: '' },
+      { text: '[OK] Loading encryption modules...', delay: 220, cls: '' },
+      { text: '[OK] Verifying RSA-4096 certificates...', delay: 360, cls: '' },
+      { text: '[OK] Establishing TLS 1.3 connection...', delay: 500, cls: '' },
+      { text: '[OK] Authenticating with C2 server...', delay: 640, cls: '' },
+      { text: '[OK] Session vault accessible (896 identities)', delay: 780, cls: 'ok' },
+      { text: '[OK] Proxy mesh online (12 nodes)', delay: 920, cls: 'ok' },
+      { text: '[OK] Gorgon/Argus crypto engine ready', delay: 1060, cls: 'ok' },
+      { text: '[OK] System armed — awaiting authorization', delay: 1200, cls: 'warn' },
+    ];
+
+    const seq = document.getElementById('bootSeq');
+    bootLines.forEach(line => {
+      const div = document.createElement('div');
+      div.className = 'boot-line' + (line.cls ? ' ' + line.cls : '');
+      div.textContent = '› ' + line.text;
+      div.style.animationDelay = line.delay + 'ms';
+      seq.appendChild(div);
+    });
+
+    const form   = document.getElementById('loginForm');
+    const errEl  = document.getElementById('errorMsg');
+    const passEl = document.getElementById('passwordInput');
+    const btn    = form.querySelector('button[type="submit"]');
+
+    if (errEl.textContent.trim()) errEl.style.display = 'block';
+
+    form.addEventListener('submit', e => {
+      if (!passEl.value.trim()) { e.preventDefault(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Authenticating…';
+    });
+  </script>
+</body>
+</html>
